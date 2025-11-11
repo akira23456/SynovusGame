@@ -20,7 +20,7 @@ let gameState = {
 };
 
 const RACE_DISTANCE = 100; // 100%
-const STAGGER_TIMES = [0, 2000, 4000]; // Team 1: 0s, Team 2: 2s delay, Team 3: 4s delay
+const STAGGER_TIMES = [0, 5000, 10000]; // Team 1: 0s, Team 2: 5s delay, Team 3: 10s delay
 const SPEED_PER_TAP = 0.04; // How much progress per tap (reduced to require ~600 taps per team)
 const FRICTION = 0.02; // Natural slowdown per tick (reduced)
 
