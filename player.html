@@ -2,37 +2,61 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Join - Trace the Package</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TAP TO RACE!</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
         
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 0;
+            overflow: hidden;
+            touch-action: manipulation;
+            position: relative;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 30% 40%, rgba(102, 126, 234, 0.4) 0%, transparent 50%),
+                radial-gradient(circle at 70% 70%, rgba(118, 75, 162, 0.4) 0%, transparent 50%);
+            pointer-events: none;
         }
         
         .mobile-container {
-            max-width: 500px;
             width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
         
         .card {
-            background: white;
-            border-radius: 25px;
-            padding: 40px 30px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            animation: slideUp 0.6s ease-out;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
         }
         
         @keyframes slideUp {
@@ -45,9 +69,87 @@
             50% { transform: scale(1.05); }
         }
         
+        @keyframes tapPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(0.95); }
+            100% { transform: scale(1); }
+        }
+        
         @keyframes bounce {
             0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        .join-screen, .waiting-screen, .team-screen, .racing-screen, .finished-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .join-screen.active, .waiting-screen.active, .team-screen.active, .racing-screen.active, .finished-screen.active {
+            display: flex;
+        }
+        
+        .racing-screen {
+            justify-content: flex-start !important;
+        }
+        
+        .racing-header {
+            width: 100%;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            text-align: center;
+            border-bottom: 2px solid rgba(102, 126, 234, 0.2);
+        }
+        
+        .my-team-header h2 {
+            color: #6b7280;
+            font-weight: 600;
+            font-size: 1.2rem;
+            margin-bottom: 5px;
+        }
+        
+        .my-team-header h1 {
+            margin: 0;
+            font-size: 2rem;
+            font-weight: 700;
+        }
+        
+        .all-teams-stats {
+            width: 100%;
+            padding: 15px;
+            background: rgba(249, 250, 251, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+        }
+        
+        .teams-stat-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        
+        .team-stat-item {
+            text-align: center;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 10px;
+            border: 2px solid;
+        }
+        
+        .team-stat-name {
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        .team-stat-taps {
+            font-size: 1.3rem;
+            font-weight: 700;
         }
         
         .logo {
@@ -56,83 +158,76 @@
         }
         
         .logo-icon {
-            font-size: 4rem;
+            font-size: 5rem;
             animation: bounce 2s infinite;
         }
         
         .logo h1 {
             color: #667eea;
-            font-size: 2rem;
+            font-size: 2.5rem;
             margin-top: 15px;
         }
         
-        .join-screen, .waiting-screen, .team-screen, .playing-screen {
-            display: none;
-        }
-        
-        .join-screen.active, .waiting-screen.active, .team-screen.active, .playing-screen.active {
-            display: block;
-        }
-        
         .form-group {
+            width: 100%;
+            max-width: 400px;
             margin-bottom: 25px;
         }
         
         .form-group label {
             display: block;
             color: #4b5563;
-            font-size: 1rem;
+            font-size: 1.2rem;
             font-weight: 600;
             margin-bottom: 10px;
         }
         
         .form-group input {
             width: 100%;
-            padding: 15px 20px;
-            border: 2px solid #e5e7eb;
-            border-radius: 12px;
-            font-size: 1.1rem;
+            padding: 20px;
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: 15px;
+            font-size: 1.3rem;
+            background: rgba(255, 255, 255, 0.9);
             transition: all 0.3s;
         }
         
         .form-group input:focus {
             outline: none;
             border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
         }
         
         .btn-join {
             width: 100%;
-            padding: 18px;
+            max-width: 400px;
+            padding: 25px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            border-radius: 12px;
-            font-size: 1.3rem;
-            font-weight: bold;
+            border-radius: 15px;
+            font-size: 1.5rem;
+            font-weight: 700;
             cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        .btn-join:hover {
-            transform: translateY(-2px);
             box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s;
+            border: 2px solid rgba(255, 255, 255, 0.2);
         }
         
         .btn-join:active {
-            transform: translateY(0);
+            transform: scale(0.98);
         }
         
         .waiting-message {
             text-align: center;
-            padding: 30px 0;
         }
         
         .spinner {
-            width: 60px;
-            height: 60px;
-            margin: 0 auto 20px;
-            border: 6px solid #e5e7eb;
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 30px;
+            border: 8px solid #e5e7eb;
             border-top-color: #667eea;
             border-radius: 50%;
             animation: spin 1s linear infinite;
@@ -144,188 +239,190 @@
         
         .waiting-message h2 {
             color: #667eea;
-            font-size: 1.8rem;
+            font-size: 2.5rem;
             margin-bottom: 15px;
         }
         
-        .waiting-message p {
-            color: #6b7280;
-            font-size: 1.1rem;
-        }
-        
-        .team-card {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            padding: 30px;
-            border-radius: 20px;
+        .team-banner {
+            width: 100%;
+            padding: 40px;
+            border-radius: 25px;
             color: white;
             text-align: center;
-            margin-bottom: 25px;
-            animation: pulse 2s infinite;
+            margin-bottom: 30px;
         }
         
         .team-icon {
-            font-size: 3rem;
-            margin-bottom: 15px;
+            font-size: 6rem;
+            margin-bottom: 20px;
         }
         
         .team-name {
-            font-size: 2rem;
+            font-size: 3rem;
             font-weight: bold;
             margin-bottom: 20px;
         }
         
-        .teammates {
-            background: rgba(255,255,255,0.2);
-            padding: 20px;
-            border-radius: 15px;
-        }
-        
-        .teammates h3 {
-            font-size: 1.2rem;
-            margin-bottom: 15px;
-        }
-        
-        .teammate {
-            background: rgba(255,255,255,0.3);
-            padding: 10px 15px;
-            border-radius: 10px;
-            margin: 8px 0;
-            font-size: 1rem;
-        }
-        
-        .game-info {
-            background: #f9fafb;
-            padding: 20px;
-            border-radius: 15px;
-            text-align: center;
-        }
-        
-        .game-info h3 {
-            color: #667eea;
+        .team-info {
             font-size: 1.5rem;
-            margin-bottom: 10px;
+            opacity: 0.9;
         }
         
-        .game-info p {
-            color: #6b7280;
-            font-size: 1rem;
-            line-height: 1.6;
-        }
-        
-        .package-list {
-            margin-top: 25px;
-        }
-        
-        .package-item {
-            background: #f9fafb;
-            padding: 20px;
-            border-radius: 15px;
-            margin-bottom: 15px;
-            border: 2px solid #e5e7eb;
-        }
-        
-        .package-name {
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: #667eea;
-            margin-bottom: 15px;
-        }
-        
-        .mini-progress {
-            display: flex;
-            justify-content: space-between;
-            gap: 5px;
-            margin-bottom: 15px;
-        }
-        
-        .mini-hub {
+        /* GIANT TAP BUTTON */
+        .tap-zone {
             flex: 1;
-            height: 40px;
-            background: #e5e7eb;
-            border-radius: 8px;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            font-size: 1.2rem;
-            transition: all 0.3s;
+            width: 100%;
+            padding: 20px;
         }
         
-        .mini-hub.active {
-            background: #667eea;
-            transform: scale(1.1);
+        .tap-button {
+            width: 90vw;
+            height: 90vw;
+            max-width: 500px;
+            max-height: 500px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            border: none;
+            box-shadow: 
+                0 20px 60px rgba(16, 185, 129, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.1s;
+            color: white;
+            position: relative;
         }
         
-        .mini-hub.completed {
-            background: #10b981;
+        .tap-button::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            padding: 3px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.5), transparent);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
         }
         
-        .mini-hub.delayed {
-            background: #ef4444;
+        .tap-button:active {
+            animation: tapPulse 0.1s;
+            box-shadow: 
+                0 10px 40px rgba(16, 185, 129, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+        
+        .tap-icon {
+            font-size: 8rem;
+            margin-bottom: 20px;
+        }
+        
+        .tap-text {
+            font-size: 3rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .tap-count {
+            font-size: 2rem;
+            margin-top: 10px;
+            opacity: 0.9;
+        }
+        
+        .status-bar {
+            width: 100%;
+            padding: 25px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            text-align: center;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+        }
+        
+        .status-text {
+            font-size: 1.5rem;
+            color: #4b5563;
+            font-weight: bold;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: rgba(229, 231, 235, 0.5);
+            border-radius: 15px;
+            overflow: hidden;
+            margin-top: 15px;
+            border: 1px solid rgba(102, 126, 234, 0.1);
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+            transition: width 0.3s;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        }
+        
+        .result-screen {
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .result-icon {
+            font-size: 8rem;
+            margin-bottom: 30px;
+        }
+        
+        .result-title {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+        
+        .result-stats {
+            font-size: 1.5rem;
+            color: #6b7280;
+            margin: 10px 0;
+        }
+        
+        .waiting-to-start {
+            text-align: center;
+            font-size: 2rem;
+            color: #fbbf24;
+            font-weight: bold;
             animation: pulse 1s infinite;
         }
-        
-        .btn-move {
-            width: 100%;
-            padding: 12px;
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        .btn-move:disabled {
-            background: #9ca3af;
-            cursor: not-allowed;
-        }
-        
-        .btn-move:not(:disabled):hover {
-            background: #5568d3;
-            transform: translateY(-2px);
-        }
-        
-        .status-badge {
-            display: inline-block;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: bold;
-            margin-top: 10px;
-        }
-        
-        .badge-pending { background: #fef3c7; color: #92400e; }
-        .badge-transit { background: #dbeafe; color: #1e40af; }
-        .badge-delivered { background: #d1fae5; color: #065f46; }
-        .badge-duplicate { background: #fee2e2; color: #991b1b; }
-        .badge-delayed { background: #fecaca; color: #7f1d1d; }
     </style>
 </head>
 <body>
     <div class="mobile-container">
         <div class="card">
-            <div class="logo">
-                <div class="logo-icon">📦</div>
-                <h1>Trace the Package</h1>
-            </div>
-            
             <!-- Join Screen -->
             <div id="joinScreen" class="join-screen active">
-                <form id="joinForm">
+                <div class="logo">
+                    <div class="logo-icon">🏇</div>
+                    <h1>Join the Race!</h1>
+                </div>
+                <form id="joinForm" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
                     <div class="form-group">
-                        <label for="playerName">Enter Your Name</label>
+                        <label for="playerName">Your Name</label>
                         <input 
                             type="text" 
                             id="playerName" 
-                            placeholder="Your name..."
+                            placeholder="Enter your name..."
                             required
                             autocomplete="off"
                         >
                     </div>
                     <button type="submit" class="btn-join">
-                        🚀 Join Game
+                        🚀 Join Race
                     </button>
                 </form>
             </div>
@@ -335,34 +432,58 @@
                 <div class="waiting-message">
                     <div class="spinner"></div>
                     <h2>You're In! 🎉</h2>
-                    <p>Waiting for the game to start...</p>
+                    <p style="font-size: 1.5rem; color: #6b7280;">Waiting for race to start...</p>
                 </div>
             </div>
             
             <!-- Team Assignment Screen -->
             <div id="teamScreen" class="team-screen">
-                <div class="team-card" id="teamCard">
-                    <div class="team-icon">🏆</div>
-                    <div class="team-name" id="teamName">Team 1</div>
-                    <div class="teammates">
-                        <h3>Your Teammates</h3>
-                        <div id="teammateList"></div>
-                    </div>
-                </div>
-                <div class="game-info">
-                    <h3>Get Ready!</h3>
-                    <p>Work together with your team to move packages through all delivery hubs!</p>
+                <div class="team-banner" id="teamBanner">
+                    <div class="team-name" id="teamName"></div>
+                    <div class="team-icon" id="teamIcon">🐴</div>
+                    <div class="team-info" id="teamInfo"></div>
                 </div>
             </div>
             
-            <!-- Playing Screen -->
-            <div id="playingScreen" class="playing-screen">
-                <div class="game-info">
-                    <h3 id="roundTitle">Round 1: Shipping Begins</h3>
-                    <p id="roundDescription">Move your packages forward!</p>
+            <!-- Racing Screen -->
+            <div id="racingScreen" class="racing-screen">
+                <div class="racing-header" id="racingHeader">
+                    <div class="my-team-header" id="myTeamHeader">
+                        <h2 style="font-size: 2rem; margin-bottom: 10px;">You are:</h2>
+                        <h1 id="myTeamName" style="font-size: 2.5rem; font-weight: 700;">Horse A</h1>
+                    </div>
                 </div>
                 
-                <div class="package-list" id="packageList"></div>
+                <div class="all-teams-stats" id="allTeamsStats">
+                    <div class="teams-stat-grid"></div>
+                </div>
+                
+                <div class="status-bar" id="statusBar">
+                    <div class="status-text" id="statusText">Waiting to start...</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <div class="tap-zone">
+                    <div class="tap-button" id="tapButton">
+                        <div class="tap-icon">👆</div>
+                        <div class="tap-text">TAP!</div>
+                        <div class="tap-count" id="tapCount">0 taps</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Finished Screen -->
+            <div id="finishedScreen" class="finished-screen">
+                <div class="result-screen">
+                    <div class="result-icon" id="resultIcon">🏆</div>
+                    <div class="result-title" id="resultTitle"></div>
+                    <div class="result-stats" id="resultStats"></div>
+                    <p style="margin-top: 40px; font-size: 1.3rem; color: #6b7280;">
+                        Check the main screen for the big reveal!
+                    </p>
+                </div>
             </div>
         </div>
     </div>
@@ -371,10 +492,9 @@
         const socket = io();
         let playerName = '';
         let myTeamId = null;
+        let myTaps = 0;
+        let canTap = false;
 
-        const HUBS = ['🏭', '🚚', '📦', '🏠'];
-
-        // Join form submission
         document.getElementById('joinForm').addEventListener('submit', (e) => {
             e.preventDefault();
             playerName = document.getElementById('playerName').value.trim();
@@ -384,130 +504,156 @@
             }
         });
 
-        // Handle game state updates
+        // TAP BUTTON
+        const tapButton = document.getElementById('tapButton');
+        let tapTimeout;
+        
+        tapButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (canTap) {
+                tap();
+            }
+        });
+        
+        tapButton.addEventListener('click', () => {
+            if (canTap) {
+                tap();
+            }
+        });
+
+        function tap() {
+            socket.emit('tap');
+            myTaps++;
+            document.getElementById('tapCount').textContent = `${myTaps} taps`;
+            
+            // Visual feedback
+            tapButton.style.transform = 'scale(0.95)';
+            clearTimeout(tapTimeout);
+            tapTimeout = setTimeout(() => {
+                tapButton.style.transform = 'scale(1)';
+            }, 100);
+        }
+
         socket.on('gameState', (state) => {
             if (state.status === 'waiting') {
-                // Already on waiting screen after joining
-            } else if (state.status === 'playing') {
-                // Find my team
+                // Stay on waiting
+            } else if (state.status === 'countdown') {
+                showScreen('racingScreen');
+                canTap = false;
+                document.getElementById('statusText').textContent = `Get Ready! ${state.countdownTime}...`;
+                document.getElementById('statusText').style.color = '#ef4444';
+            } else if (state.status === 'racing') {
                 const myPlayer = state.players.find(p => p.id === socket.id);
                 if (myPlayer && myPlayer.teamId) {
                     myTeamId = myPlayer.teamId;
                     const myTeam = state.teams.find(t => t.id === myTeamId);
                     
                     if (myTeam) {
-                        updateTeamScreen(myTeam);
-                        updatePlayingScreen(state, myTeam);
+                        // Update my team name at top
+                        document.getElementById('myTeamName').textContent = myTeam.name;
+                        document.getElementById('myTeamName').style.color = myTeam.color;
                         
-                        // Show team screen briefly before playing screen
-                        if (document.getElementById('teamScreen').classList.contains('active') === false &&
-                            document.getElementById('playingScreen').classList.contains('active') === false) {
-                            showScreen('teamScreen');
-                            setTimeout(() => {
-                                showScreen('playingScreen');
-                            }, 3000);
+                        // Update all teams stats
+                        const teamsGrid = document.querySelector('.teams-stat-grid');
+                        teamsGrid.innerHTML = state.teams.map(team => `
+                            <div class="team-stat-item" style="border-color: ${team.color}">
+                                <div class="team-stat-name" style="color: ${team.color}">${team.name}</div>
+                                <div class="team-stat-taps">${team.totalTaps}</div>
+                            </div>
+                        `).join('');
+                        
+                        // Always update progress bar during racing
+                        const progress = Math.min(100, Math.round(myTeam.position));
+                        document.getElementById('progressFill').style.width = `${progress}%`;
+                        
+                        if (myTeam.canRace) {
+                            canTap = true;
+                            document.getElementById('statusText').textContent = 'TAP TAP TAP!!!';
+                            document.getElementById('statusText').style.color = '#10b981';
                         } else {
-                            showScreen('playingScreen');
+                            canTap = false;
+                            document.getElementById('statusText').textContent = `Starting in ${myTeam.staggerDelay}s...`;
+                            document.getElementById('statusText').style.color = '#fbbf24';
+                        }
+                        
+                        // Only switch screens on first time
+                        if (!document.getElementById('racingScreen').classList.contains('active') && 
+                            !document.getElementById('teamScreen').classList.contains('active')) {
+                            updateTeamScreen(myTeam);
+                            showScreen('teamScreen');
+                            setTimeout(() => showScreen('racingScreen'), 2000);
+                        } else if (document.getElementById('teamScreen').classList.contains('active')) {
+                            // Let team screen play out
+                        } else {
+                            // Already on racing screen, just stay there
+                            showScreen('racingScreen');
                         }
                     }
                 }
-            } else if (state.status === 'reveal') {
-                // Show reveal message
-                document.getElementById('playingScreen').innerHTML = `
-                    <div class="game-info">
-                        <h3>🎉 Game Complete!</h3>
-                        <p>Check the main screen for the big reveal about Synovus' Tracer System!</p>
-                    </div>
-                `;
+            } else if (state.status === 'finished') {
+                canTap = false;
+                const myPlayer = state.players.find(p => p.id === socket.id);
+                if (myPlayer && myPlayer.teamId) {
+                    const myTeam = state.teams.find(t => t.id === myPlayer.teamId);
+                    showFinished(myTeam, state.teams);
+                }
+            }
+        });
+
+        socket.on('teamStarted', (teamId) => {
+            if (teamId === myTeamId) {
+                canTap = true;
+                document.getElementById('statusText').textContent = 'TAP TAP TAP!!!';
+                document.getElementById('statusText').style.color = '#10b981';
+                
+                // Vibrate if supported
+                if (navigator.vibrate) {
+                    navigator.vibrate(200);
+                }
             }
         });
 
         function updateTeamScreen(team) {
-            const teamColors = [
-                'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-                'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
-            ];
-            
-            document.getElementById('teamCard').style.background = teamColors[team.id - 1];
+            const banner = document.getElementById('teamBanner');
+            banner.style.background = team.color;
+            document.getElementById('teamIcon').textContent = team.emoji;
             document.getElementById('teamName').textContent = team.name;
-            
-            const teammateList = document.getElementById('teammateList');
-            teammateList.innerHTML = team.members.map(member => `
-                <div class="teammate">${member}</div>
-            `).join('');
+            document.getElementById('teamInfo').textContent = `Get Ready to TAP!`;
         }
 
-        function updatePlayingScreen(state, team) {
-            // Update round info
-            if (state.currentRound === 1) {
-                document.getElementById('roundTitle').textContent = 'Round 1: Shipping Begins';
-                document.getElementById('roundDescription').textContent = 'Move your packages through each hub!';
-            } else if (state.currentRound === 2) {
-                document.getElementById('roundTitle').textContent = 'Round 2: Holiday Chaos';
-                document.getElementById('roundDescription').textContent = '⚠️ Watch out for duplicates!';
-            } else if (state.currentRound === 3) {
-                document.getElementById('roundTitle').textContent = 'Round 3: Trace Alert';
-                document.getElementById('roundDescription').textContent = '🔴 Some packages may be delayed!';
+        function showFinished(myTeam, allTeams) {
+            const place = allTeams.findIndex(t => t.id === myTeam.id) + 1;
+            
+            if (place === 1) {
+                document.getElementById('resultIcon').textContent = '🏆';
+                document.getElementById('resultTitle').textContent = 'YOU WON!';
+                document.getElementById('resultTitle').style.color = '#fbbf24';
+            } else if (place === 2) {
+                document.getElementById('resultIcon').textContent = '🥈';
+                document.getElementById('resultTitle').textContent = '2nd Place!';
+                document.getElementById('resultTitle').style.color = '#9ca3af';
+            } else {
+                document.getElementById('resultIcon').textContent = '🥉';
+                document.getElementById('resultTitle').textContent = `${place}rd Place`;
+                document.getElementById('resultTitle').style.color = '#f97316';
             }
             
-            // Update package list
-            const packageList = document.getElementById('packageList');
-            packageList.innerHTML = team.packages.map(pkg => {
-                let statusClass = 'badge-pending';
-                let statusText = 'Pending';
-                
-                if (pkg.duplicate) {
-                    statusClass = 'badge-duplicate';
-                    statusText = '⚠️ DUPLICATE';
-                } else if (pkg.delayed) {
-                    statusClass = 'badge-delayed';
-                    statusText = '🔴 DELAYED';
-                } else if (pkg.status === 'delivered') {
-                    statusClass = 'badge-delivered';
-                    statusText = '✓ Delivered';
-                } else if (pkg.status === 'in-transit') {
-                    statusClass = 'badge-transit';
-                    statusText = 'In Transit';
-                }
-                
-                return `
-                    <div class="package-item">
-                        <div class="package-name">${pkg.id}</div>
-                        <div class="mini-progress">
-                            ${HUBS.map((hub, idx) => `
-                                <div class="mini-hub ${
-                                    pkg.currentHub === idx ? 'active' :
-                                    pkg.currentHub > idx ? 'completed' :
-                                    pkg.delayed && pkg.currentHub === idx ? 'delayed' : ''
-                                }">
-                                    ${hub}
-                                </div>
-                            `).join('')}
-                        </div>
-                        <button 
-                            class="btn-move" 
-                            onclick="movePackage(${team.id}, '${pkg.id}')"
-                            ${pkg.currentHub >= 4 ? 'disabled' : ''}
-                        >
-                            ${pkg.status === 'delivered' ? '✓ Delivered' : 'Move Forward →'}
-                        </button>
-                        <div class="status-badge ${statusClass}">${statusText}</div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function movePackage(teamId, packageId) {
-            socket.emit('movePackage', { teamId, packageId });
+            document.getElementById('resultStats').innerHTML = `
+                <div>${myTeam.name}</div>
+                <div style="margin-top: 10px;">Time: ${myTeam.raceTime}s</div>
+                <div>You tapped: ${myTaps} times</div>
+                <div>Team total: ${myTeam.totalTaps} taps</div>
+            `;
+            
+            showScreen('finishedScreen');
         }
 
         function showScreen(screenId) {
             document.getElementById('joinScreen').classList.remove('active');
             document.getElementById('waitingScreen').classList.remove('active');
             document.getElementById('teamScreen').classList.remove('active');
-            document.getElementById('playingScreen').classList.remove('active');
+            document.getElementById('racingScreen').classList.remove('active');
+            document.getElementById('finishedScreen').classList.remove('active');
             document.getElementById(screenId).classList.add('active');
         }
     </script>

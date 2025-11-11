@@ -3,9 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trace the Package - Admin Display</title>
+    <title>Horse Race - Transaction Tracker</title>
     <script src="/socket.io/socket.io.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --color-primary: #1F2937; /* Dark Slate Gray */
+            --color-secondary: #4F46E5; /* Indigo */
+            --color-success: #10B981; /* Emerald Green */
+            --color-warning: #F59E0B; /* Amber */
+            --color-error: #EF4444; /* Red */
+            --color-bg-dark: #374151; /* Medium Slate Gray */
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -13,82 +23,76 @@
         }
         
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-bg-dark) 100%);
             min-height: 100vh;
-            overflow-x: hidden;
+            color: var(--color-primary);
         }
         
         .container {
-            max-width: 1600px;
+            max-width: 1800px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 40px 20px;
         }
         
         .header {
             text-align: center;
             color: white;
-            margin-bottom: 30px;
-            animation: fadeIn 1s ease-in;
+            margin-bottom: 40px;
         }
         
         .header h1 {
-            font-size: 3rem;
+            font-size: 4.5rem;
+            font-weight: 800;
             margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            text-shadow: 3px 3px 8px rgba(0,0,0,0.6);
+            letter-spacing: 2px;
         }
         
         .header p {
-            font-size: 1.2rem;
+            font-size: 1.8rem;
+            font-weight: 300;
             opacity: 0.9;
         }
-        
-        .game-screen {
-            background: white;
-            border-radius: 20px;
-            padding: 40px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            animation: slideUp 0.8s ease-out;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
+
         @keyframes slideUp {
-            from { opacity: 0; transform: translateY(50px); }
+            from { opacity: 0; transform: translateY(30px); }
             to { opacity: 1; transform: translateY(0); }
         }
         
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
+        @keyframes gallop {
+            0%, 100% { transform: translateY(-50%); }
+            25% { transform: translateY(-55%); }
+            75% { transform: translateY(-45%); }
         }
         
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
+        .game-card {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(15px);
+            border-radius: 25px;
+            padding: 50px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+            animation: slideUp 0.8s cubic-bezier(0.165, 0.84, 0.44, 1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateX(-30px); }
-            to { opacity: 1; transform: translateX(0); }
+        .waiting-screen, .countdown-screen, .racing-screen, .finished-screen {
+            display: none;
+        }
+        
+        .waiting-screen.active, .countdown-screen.active, .racing-screen.active, .finished-screen.active {
+            display: block;
         }
         
         /* Waiting Screen */
-        .waiting-screen {
-            text-align: center;
-            padding: 40px;
-        }
-        
         .qr-section {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--color-secondary), #5A48D5);
             padding: 40px;
             border-radius: 20px;
             margin: 30px auto;
-            max-width: 500px;
-            animation: pulse 2s infinite;
+            max-width: 550px;
+            text-align: center;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
         }
         
         .qr-code {
@@ -96,404 +100,381 @@
             padding: 20px;
             border-radius: 15px;
             display: inline-block;
-            margin: 20px 0;
+            margin: 15px 0;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
         
         .qr-code img {
-            display: block;
-            width: 300px;
-            height: 300px;
+            width: 250px;
+            height: 250px;
         }
         
         .join-url {
             color: white;
-            font-size: 1.5rem;
-            font-weight: bold;
-            margin-top: 20px;
-        }
-        
-        .players-waiting {
-            margin-top: 40px;
+            font-size: 1.3rem;
+            font-weight: 600;
+            opacity: 0.9;
+            word-wrap: break-word;
         }
         
         .player-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
         }
         
         .player-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: white;
+            color: var(--color-primary);
             padding: 20px;
             border-radius: 15px;
-            animation: slideIn 0.5s ease-out;
-            transition: transform 0.3s;
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: 600;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            border: 1px solid #E5E7EB;
+            transition: transform 0.2s;
         }
         
         .player-card:hover {
-            transform: scale(1.05);
-        }
-        
-        .player-name {
-            font-size: 1.2rem;
-            font-weight: bold;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
         }
         
         .start-btn {
             padding: 20px 60px;
-            background: #10b981;
+            background: linear-gradient(45deg, var(--color-success), #059669);
             color: white;
             border: none;
             border-radius: 15px;
-            font-size: 1.5rem;
+            font-size: 1.8rem;
             cursor: pointer;
             margin-top: 30px;
-            transition: all 0.3s;
-            animation: bounce 2s infinite;
+            transition: all 0.3s ease;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 10px 30px rgba(16, 185, 129, 0.4);
         }
         
-        .start-btn:hover {
-            background: #059669;
-            transform: scale(1.1);
+        .start-btn:hover:not(:disabled) {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 15px 40px rgba(16, 185, 129, 0.6);
         }
         
         .start-btn:disabled {
-            background: #ccc;
+            background: #E5E7EB;
+            color: #9CA3AF;
             cursor: not-allowed;
-            animation: none;
+            box-shadow: none;
         }
         
-        /* Playing Screen */
-        .round-banner {
+        /* Countdown Screen */
+        .countdown-display {
             text-align: center;
-            padding: 30px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 15px;
-            margin-bottom: 30px;
-            animation: slideUp 0.5s ease-out;
+            padding: 80px 0;
         }
         
-        .round-banner h2 {
+        .countdown-number {
+            font-size: 18rem;
+            font-weight: 800;
+            color: var(--color-secondary);
+            animation: bounce 0.5s;
+        }
+        
+        .countdown-text {
             font-size: 2.5rem;
-            margin-bottom: 10px;
-        }
-        
-        .round-banner p {
-            font-size: 1.2rem;
-        }
-        
-        .teams-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 25px;
-            margin: 30px 0;
-        }
-        
-        .team-display {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            padding: 25px;
-            border-radius: 20px;
-            color: white;
-            animation: slideIn 0.6s ease-out;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-        
-        .team-display:nth-child(2) {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-        }
-        
-        .team-display:nth-child(3) {
-            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-        }
-        
-        .team-display:nth-child(4) {
-            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-        }
-        
-        .team-name {
-            font-size: 2rem;
-            font-weight: bold;
-            margin-bottom: 15px;
-        }
-        
-        .team-members {
-            margin-bottom: 20px;
-        }
-        
-        .member-tag {
-            background: rgba(255,255,255,0.3);
-            padding: 8px 15px;
-            border-radius: 20px;
-            display: inline-block;
-            margin: 5px;
-            font-size: 0.9rem;
-        }
-        
-        .package-track {
-            background: rgba(255,255,255,0.95);
-            padding: 20px;
-            border-radius: 15px;
-            margin: 15px 0;
-            animation: slideUp 0.4s ease-out;
-        }
-        
-        .package-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        
-        .package-id {
-            font-size: 1.3rem;
-            font-weight: bold;
-            color: #667eea;
-        }
-        
-        .package-status {
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            font-weight: bold;
-        }
-        
-        .status-pending { background: #fef3c7; color: #92400e; }
-        .status-transit { background: #dbeafe; color: #1e40af; }
-        .status-delivered { background: #d1fae5; color: #065f46; }
-        .status-duplicate { background: #fee2e2; color: #991b1b; }
-        .status-delayed { background: #fecaca; color: #7f1d1d; }
-        
-        .tracking-visual {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: relative;
-            margin: 30px 0;
-        }
-        
-        .hub-point {
-            flex: 1;
-            text-align: center;
-            position: relative;
-            z-index: 2;
-        }
-        
-        .hub-icon {
-            width: 70px;
-            height: 70px;
-            border-radius: 50%;
-            background: white;
-            border: 4px solid #e5e7eb;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 10px;
-            font-size: 2rem;
-            transition: all 0.5s ease;
-        }
-        
-        .hub-icon.active {
-            background: #667eea;
-            border-color: #667eea;
-            transform: scale(1.3);
-            box-shadow: 0 0 30px rgba(102, 126, 234, 0.6);
-            animation: pulse 1.5s infinite;
-        }
-        
-        .hub-icon.completed {
-            background: #10b981;
-            border-color: #10b981;
-            transform: scale(1.1);
-        }
-        
-        .hub-icon.delayed {
-            background: #ef4444;
-            border-color: #ef4444;
-            animation: pulse 1s infinite;
-        }
-        
-        .hub-name {
-            font-size: 0.9rem;
-            color: #4b5563;
+            color: var(--color-primary);
+            margin-top: 20px;
             font-weight: 600;
         }
         
-        .hub-system {
-            font-size: 0.75rem;
-            color: #9ca3af;
-            margin-top: 5px;
-        }
-        
-        .progress-line {
-            position: absolute;
-            top: 35px;
-            left: 35px;
-            right: 35px;
-            height: 6px;
-            background: #e5e7eb;
-            z-index: 1;
-            border-radius: 3px;
-        }
-        
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-            transition: width 0.8s ease;
-            border-radius: 3px;
-        }
-        
-        .package-icon {
-            position: absolute;
-            top: 15px;
-            font-size: 2.5rem;
-            transition: left 0.8s ease;
-            z-index: 3;
-            animation: bounce 1s infinite;
-        }
-        
-        .control-panel {
-            text-align: center;
-            margin-top: 40px;
-            padding: 30px;
-            background: #f9fafb;
-            border-radius: 15px;
-        }
-        
-        .btn {
-            padding: 15px 40px;
-            border: none;
-            border-radius: 12px;
-            font-size: 1.2rem;
-            cursor: pointer;
-            margin: 10px;
-            transition: all 0.3s;
-            font-weight: bold;
-        }
-        
-        .btn-warning {
-            background: #f59e0b;
-            color: white;
-        }
-        
-        .btn-warning:hover {
-            background: #d97706;
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(245, 158, 11, 0.3);
-        }
-        
-        .btn-success {
-            background: #10b981;
-            color: white;
-        }
-        
-        .btn-success:hover {
-            background: #059669;
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
-        }
-        
-        /* Reveal Screen */
-        .reveal-screen {
-            text-align: center;
-            animation: fadeIn 1s ease-in;
-        }
-        
-        .reveal-banner {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 50px;
+        /* Racing Screen */
+        .race-track {
+            background: #D1FAE5; /* Light Mint */
             border-radius: 20px;
-            margin-bottom: 40px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.1);
+            border: 2px solid var(--color-success);
         }
         
-        .reveal-banner h2 {
+        .finish-line {
+            position: absolute;
+            right: 20px;
+            top: 0;
+            bottom: 0;
+            width: 30px;
+            background: repeating-linear-gradient(0deg, #000 0, #000 15px, #fff 15px, #fff 30px);
+            border-radius: 5px;
+            box-shadow: -5px 0 10px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+        
+        .lane {
+            position: relative;
+            height: 120px; /* Reduced height for compactness */
+            margin: 10px 0;
+            background: rgba(255,255,255,0.4);
+            border-radius: 15px;
+            padding: 10px;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            transition: all 0.2s;
+        }
+
+        .lane:nth-child(1) { margin-top: 0; }
+        .lane:last-child { margin-bottom: 0; }
+        
+        .start-gate {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 60px;
+            background: repeating-linear-gradient(45deg, var(--color-warning) 0, var(--color-warning) 8px, var(--color-primary) 8px, var(--color-primary) 16px);
+            border-radius: 12px 0 0 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            z-index: 15;
+            transition: transform 0.8s ease-out, opacity 0.8s ease-out;
+            box-shadow: 5px 0 10px rgba(0,0,0,0.1);
+        }
+        
+        .start-gate.open {
+            transform: translateX(-100%);
+            opacity: 0;
+        }
+        
+        .lane-info {
+            position: absolute;
+            left: 80px;
+            top: 5px;
+            z-index: 10;
+            color: var(--color-primary);
+        }
+        
+        .team-label {
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+        
+        .stagger-info {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #6B7280;
+        }
+        
+        .horse {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 4.5rem;
+            transition: left 0.05s linear;
+            z-index: 5;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .horse.racing {
+            animation: gallop 0.2s infinite;
+        }
+
+        /* Stats Panel */
+        .stats-panel {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-top: 40px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            border: 1px solid #E5E7EB;
+            transition: transform 0.2s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+        
+        .stat-team {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        
+        .stat-value {
             font-size: 3rem;
+            font-weight: 800;
+            color: var(--color-secondary);
+        }
+        
+        .stat-label {
+            font-size: 1rem;
+            color: #6B7280;
+            margin-top: 5px;
+            font-weight: 500;
+        }
+        
+        .stat-progress {
+            margin-top: 15px;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--color-success);
+        }
+        
+        /* Finished Screen */
+        .podium {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 30px;
+            margin: 50px 0;
+            height: 350px;
+        }
+        
+        .podium-place {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            transition: all 0.5s ease-out;
+        }
+        
+        .podium-horse {
+            font-size: 5rem;
             margin-bottom: 20px;
         }
         
-        .reveal-banner p {
-            font-size: 1.3rem;
-            line-height: 1.8;
-            max-width: 800px;
-            margin: 0 auto;
+        .podium-stand {
+            width: 220px;
+            background: var(--color-warning);
+            border-radius: 15px 15px 0 0;
+            padding: 20px 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.2);
+            position: relative;
+        }
+        
+        .podium-place:nth-child(1) .podium-stand { height: 300px; background: linear-gradient(to top, #FFD700 0%, #F59E0B 100%); }
+        .podium-place:nth-child(2) .podium-stand { height: 200px; background: linear-gradient(to top, #C0C0C0 0%, #9CA3AF 100%); }
+        .podium-place:nth-child(3) .podium-stand { height: 150px; background: linear-gradient(to top, #CD7F32 0%, #EA580C 100%); }
+        
+        .place-number { font-size: 4rem; margin-bottom: 5px; font-weight: 800; }
+        .place-team { font-size: 1.6rem; margin-bottom: 5px; font-weight: 700; }
+        .place-time { font-size: 1.3rem; opacity: 0.9; font-weight: 500; }
+        
+        .reveal-btn {
+            padding: 18px 50px;
+            background: var(--color-secondary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.4rem;
+            cursor: pointer;
+            margin-top: 30px;
+            font-weight: 700;
+            box-shadow: 0 8px 20px rgba(79, 70, 229, 0.4);
+            transition: all 0.3s;
+        }
+
+        .reveal-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(79, 70, 229, 0.6);
+        }
+        
+        .reveal-content {
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-bg-dark) 100%);
+            color: white;
+            padding: 50px;
+            border-radius: 20px;
+            text-align: center;
+            margin-top: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        .reveal-content h2 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+        
+        .reveal-content p {
+            font-size: 1.5rem;
+            line-height: 1.6;
+            margin: 15px 0;
+            font-weight: 300;
         }
         
         .mapping-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(3, 1fr);
             gap: 20px;
             margin: 40px 0;
         }
         
         .mapping-card {
-            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
-            padding: 30px;
+            background: rgba(255,255,255,0.15);
+            padding: 25px;
             border-radius: 15px;
-            animation: slideIn 0.6s ease-out;
-            transition: transform 0.3s;
+            text-align: left;
+            border-left: 5px solid var(--color-success);
         }
         
-        .mapping-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
-        }
-        
-        .mapping-icon {
-            font-size: 3rem;
-            margin-bottom: 15px;
-        }
-        
-        .mapping-title {
-            font-size: 1.3rem;
-            font-weight: bold;
-            color: #667eea;
+        .mapping-card h3 {
+            font-size: 1.4rem;
             margin-bottom: 10px;
+            font-weight: 600;
         }
-        
-        .mapping-subtitle {
-            font-size: 1rem;
-            color: #6b7280;
+
+        .mapping-card p {
+            font-size: 1.1rem;
+            margin: 0;
+            font-weight: 400;
         }
         
         .reset-btn {
-            padding: 20px 60px;
+            padding: 15px 40px;
             background: white;
-            color: #667eea;
-            border: 2px solid #667eea;
-            border-radius: 15px;
-            font-size: 1.3rem;
+            color: var(--color-secondary);
+            border: none;
+            border-radius: 10px;
+            font-size: 1.2rem;
             cursor: pointer;
-            margin-top: 40px;
-            font-weight: bold;
+            margin-top: 30px;
+            font-weight: 700;
             transition: all 0.3s;
         }
-        
+
         .reset-btn:hover {
-            background: #667eea;
-            color: white;
-            transform: scale(1.05);
-        }
-        
-        .hidden {
-            display: none;
+            background: #E5E7EB;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🎮 Trace the Package</h1>
-            <p>Interactive Demo for Synovus' Tracer System</p>
+            <h1>🏇 Synovus Transaction Tracer Race</h1>
+            <p>Tap Fast to Win!</p>
         </div>
         
-        <div class="game-screen">
-            <!-- Waiting Screen -->
-            <div id="waitingScreen" class="waiting-screen">
-                <h2 style="color: #667eea; font-size: 2.5rem; margin-bottom: 20px;">
-                    Scan to Join the Game!
+        <div class="game-card">
+            <div id="waitingScreen" class="waiting-screen active">
+                <h2 style="color: var(--color-secondary); font-size: 2.5rem; margin-bottom: 20px; text-align: center;">
+                    Scan to Join the Race!
                 </h2>
                 
                 <div class="qr-section">
@@ -503,103 +484,105 @@
                     <div class="join-url" id="joinUrl"></div>
                 </div>
                 
-                <div class="players-waiting">
-                    <h3 style="color: #4b5563; font-size: 1.8rem; margin-bottom: 20px;">
-                        Players Joined (<span id="playerCount">0</span>)
+                <div style="text-align: center;">
+                    <h3 style="color: var(--color-primary); font-size: 1.8rem; margin: 30px 0 20px;">
+                        Racers Ready (<span id="playerCount">0</span>)
                     </h3>
                     <div class="player-grid" id="playerGrid"></div>
                     
                     <button class="start-btn" id="startBtn" disabled>
-                        Start Game
+                        🏁 Start Race!
                     </button>
-                    <p style="color: #ef4444; margin-top: 15px; font-size: 1.1rem;" id="minPlayerMsg">
-                        Waiting for at least 2 players...
+                    <p style="color: var(--color-error); margin-top: 20px; font-size: 1.1rem;" id="minPlayerMsg">
+                        Need at least 3 racers...
                     </p>
                 </div>
             </div>
             
-            <!-- Playing Screen -->
-            <div id="playingScreen" class="hidden">
-                <div class="round-banner" id="roundBanner">
-                    <h2>Round 1: Shipping Begins</h2>
-                    <p>Move your packages through each hub!</p>
-                </div>
-                
-                <div class="teams-container" id="teamsContainer"></div>
-                
-                <div class="control-panel" id="controlPanel">
-                    <button class="btn btn-warning" id="round2Btn">
-                        🎲 Start Round 2: Add Chaos
-                    </button>
+            <div id="countdownScreen" class="countdown-screen">
+                <div class="countdown-display">
+                    <div class="countdown-number" id="countdownNumber">3</div>
+                    <div class="countdown-text">Get Ready to TAP!</div>
                 </div>
             </div>
             
-            <!-- Reveal Screen -->
-            <div id="revealScreen" class="hidden reveal-screen">
-                <div class="reveal-banner">
-                    <h2>🎉 The Big Reveal!</h2>
-                    <p>
-                        Just like you tracked your packages through the delivery system,
-                        <strong>Synovus' Tracer System</strong> monitors every payment's journey
-                        from initiation to confirmation!
-                    </p>
+            <div id="racingScreen" class="racing-screen">
+                <h2 style="color: var(--color-secondary); font-size: 2rem; text-align: center; margin-bottom: 20px; font-weight: 600;">
+                    🏁 Staggered Start: A (0s) → B (3s) → C (5s)
+                </h2>
+                
+                <div class="race-track">
+                    <div id="lanes"></div>
+                    <div class="finish-line"></div>
                 </div>
                 
-                <div class="mapping-grid">
-                    <div class="mapping-card">
-                        <div class="mapping-icon">📦</div>
-                        <div class="mapping-title">Package</div>
-                        <div class="mapping-subtitle">Synovus Transaction</div>
-                    </div>
-                    <div class="mapping-card">
-                        <div class="mapping-icon">🏷️</div>
-                        <div class="mapping-title">Tracking ID</div>
-                        <div class="mapping-subtitle">Trace ID</div>
-                    </div>
-                    <div class="mapping-card">
-                        <div class="mapping-icon">🏭</div>
-                        <div class="mapping-title">Warehouse</div>
-                        <div class="mapping-subtitle">Frontend System</div>
-                    </div>
-                    <div class="mapping-card">
-                        <div class="mapping-icon">🚚</div>
-                        <div class="mapping-title">Truck</div>
-                        <div class="mapping-subtitle">API Layer</div>
-                    </div>
-                    <div class="mapping-card">
-                        <div class="mapping-icon">📦</div>
-                        <div class="mapping-title">Sorting Center</div>
-                        <div class="mapping-subtitle">Backend System</div>
-                    </div>
-                    <div class="mapping-card">
-                        <div class="mapping-icon">🏠</div>
-                        <div class="mapping-title">Doorstep</div>
-                        <div class="mapping-subtitle">User Confirmation</div>
-                    </div>
+                <div class="stats-panel" id="statsPanel"></div>
+            </div>
+            
+            <div id="finishedScreen" class="finished-screen">
+                <h2 style="color: var(--color-secondary); font-size: 3rem; text-align: center; margin-bottom: 30px;">
+                    🏆 Race Complete!
+                </h2>
+                
+                <div class="podium" id="podium"></div>
+                
+                <div style="text-align: center;">
+                    <button class="reveal-btn" onclick="showReveal()">
+                        🎉 Show The Transaction Tracking Reveal
+                    </button>
                 </div>
                 
-                <p style="font-size: 1.3rem; color: #4b5563; max-width: 800px; margin: 40px auto; line-height: 1.8;">
-                    Our trace ID ensures every transaction is <strong>accounted for</strong>,
-                    no <strong>duplicates</strong> occur, and <strong>latency</strong> is detected early!
-                </p>
-                
-                <button class="reset-btn" id="resetBtn">
-                    🔄 Play Again
-                </button>
+                <div id="revealContent" style="display: none;">
+                    <div class="reveal-content">
+                        <h2>🎯 This Race Represented Transaction Tracking!</h2>
+                        <p><strong>Each horse was a transaction moving through the Synovus system.</strong></p>
+                        
+                        <div class="mapping-grid">
+                            <div class="mapping-card">
+                                <h3>🐴 Horses</h3>
+                                <p>= Financial Transactions</p>
+                            </div>
+                            <div class="mapping-card">
+                                <h3>🚪 Staggered Start</h3>
+                                <p>= Different Transaction Types (Priority Levels)</p>
+                            </div>
+                            <div class="mapping-card">
+                                <h3>👆 Your Taps</h3>
+                                <p>= System Processing Power</p>
+                            </div>
+                            <div class="mapping-card">
+                                <h3>🏁 Race Track</h3>
+                                <p>= Transaction Pipeline</p>
+                            </div>
+                            <div class="mapping-card">
+                                <h3>📊 Real-time Updates</h3>
+                                <p>= Tracer System Dashboard</p>
+                            </div>
+                            <div class="mapping-card">
+                                <h3>🏆 Finish Times</h3>
+                                <p>= Transaction Latency Metrics</p>
+                            </div>
+                        </div>
+                        
+                        <p style="font-size: 1.6rem; margin-top: 40px; font-weight: 500;">
+                            <strong>Synovus' Tracer System tracks every transaction in real-time,
+                            measures latency, and ensures nothing gets lost!</strong>
+                        </p>
+                        
+                        <button class="reset-btn" onclick="resetGame()">
+                            🔄 Race Again
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        const socket = io();
-        const HUBS = [
-            { icon: '🏭', label: 'Warehouse', system: 'Frontend System' },
-            { icon: '🚚', label: 'Truck', system: 'API Layer' },
-            { icon: '📦', label: 'Sorting Center', system: 'Backend System' },
-            { icon: '🏠', label: 'Doorstep', system: 'User Confirmation' }
-        ];
+        // --- Existing JavaScript Logic (Unmodified) ---
 
-        // Load QR code
+        const socket = io();
+
         fetch('/qr')
             .then(res => res.json())
             .then(data => {
@@ -607,26 +590,22 @@
                 document.getElementById('joinUrl').textContent = data.url;
             });
 
-        // Handle game state updates
         socket.on('gameState', (state) => {
             updateDisplay(state);
         });
 
         function updateDisplay(state) {
-            // Update player count
             document.getElementById('playerCount').textContent = state.players.length;
             
-            // Update player grid
             const playerGrid = document.getElementById('playerGrid');
             playerGrid.innerHTML = state.players.map((player, idx) => `
                 <div class="player-card" style="animation-delay: ${idx * 0.1}s">
-                    <div class="player-name">👤 ${player.name}</div>
+                    👤 ${player.name}
                 </div>
             `).join('');
             
-            // Enable/disable start button
             const startBtn = document.getElementById('startBtn');
-            if (state.players.length >= 2) {
+            if (state.players.length >= 3) {
                 startBtn.disabled = false;
                 document.getElementById('minPlayerMsg').style.display = 'none';
             } else {
@@ -634,146 +613,104 @@
                 document.getElementById('minPlayerMsg').style.display = 'block';
             }
             
-            // Show appropriate screen
             if (state.status === 'waiting') {
                 showScreen('waitingScreen');
-            } else if (state.status === 'playing') {
-                showScreen('playingScreen');
-                updateGameDisplay(state);
-            } else if (state.status === 'reveal') {
-                showScreen('revealScreen');
+            } else if (state.status === 'countdown') {
+                showScreen('countdownScreen');
+                document.getElementById('countdownNumber').textContent = state.countdownTime;
+            } else if (state.status === 'racing') {
+                showScreen('racingScreen');
+                updateRace(state);
+            } else if (state.status === 'finished') {
+                showScreen('finishedScreen');
+                showResults(state);
             }
         }
 
-        function updateGameDisplay(state) {
-            // Update round banner
-            const roundBanner = document.getElementById('roundBanner');
-            if (state.currentRound === 1) {
-                roundBanner.innerHTML = `
-                    <h2>Round 1: Shipping Begins</h2>
-                    <p>Move your packages through each hub!</p>
-                `;
-            } else if (state.currentRound === 2) {
-                roundBanner.innerHTML = `
-                    <h2>Round 2: Holiday Chaos</h2>
-                    <p>⚠️ Some packages might get duplicated or mixed up...</p>
-                `;
-            } else if (state.currentRound === 3) {
-                roundBanner.innerHTML = `
-                    <h2>Round 3: Trace Alert</h2>
-                    <p>🔴 A delay has been detected at one hub...</p>
-                `;
-            }
-            
-            // Update teams display
-            const teamsContainer = document.getElementById('teamsContainer');
-            teamsContainer.innerHTML = state.teams.map((team, idx) => `
-                <div class="team-display" style="animation-delay: ${idx * 0.1}s">
-                    <div class="team-name">${team.name}</div>
-                    <div class="team-members">
-                        ${team.members.map(member => `
-                            <span class="member-tag">${member}</span>
-                        `).join('')}
+        function updateRace(state) {
+            const lanes = document.getElementById('lanes');
+            // Adjusted 'left' calculation to ensure it doesn't leave the lane
+            const RACE_WIDTH = 1800 - 40 - 20; // Container max-width - padding - finish-line width
+            const LANE_START_OFFSET = 100; // Space for gate/info
+            const LANE_END_OFFSET = 50; // Space before finish line
+
+            lanes.innerHTML = state.teams.map(team => {
+                const progress = Math.min(100, team.position);
+                // Calculate position based on the percentage of the available track (RACE_WIDTH - offsets)
+                // The horse should move from 80px (after the gate) to (RACE_WIDTH - 50)px
+                const trackLength = RACE_WIDTH - LANE_START_OFFSET - LANE_END_OFFSET;
+                const horseLeft = LANE_START_OFFSET + (progress / 100) * trackLength;
+
+                return `
+                    <div class="lane">
+                        <div class="start-gate ${team.canRace ? 'open' : ''}">
+                            <span style="font-size: 1.5rem;">${team.staggerDelay === 0 ? 'GO' : team.staggerDelay + 's'}</span>
+                        </div>
+                        <div class="lane-info">
+                            <div class="team-label" style="color: ${team.color}">${team.name}</div>
+                            <div class="stagger-info">${team.staggerDelay}s Staggered Start</div>
+                        </div>
+                        <div class="horse ${team.canRace ? 'racing' : ''}" style="left: ${horseLeft}px;">
+                            ${team.emoji}
+                        </div>
                     </div>
-                    ${team.packages.map(pkg => renderPackage(pkg)).join('')}
+                `;
+            }).join('');
+            
+            const statsPanel = document.getElementById('statsPanel');
+            statsPanel.innerHTML = state.teams.map(team => `
+                <div class="stat-card">
+                    <div class="stat-team" style="color: ${team.color}">${team.name}</div>
+                    <div class="stat-value">${team.totalTaps}</div>
+                    <div class="stat-label">Total Taps</div>
+                    <div class="stat-progress" style="color: ${team.color};">
+                        ${Math.round(team.position)}%
+                    </div>
                 </div>
             `).join('');
-            
-            // Update control panel
-            const controlPanel = document.getElementById('controlPanel');
-            if (state.currentRound === 1) {
-                controlPanel.innerHTML = `
-                    <button class="btn btn-warning" onclick="nextRound()">
-                        🎲 Start Round 2: Add Chaos
-                    </button>
-                `;
-            } else if (state.currentRound === 2) {
-                controlPanel.innerHTML = `
-                    <button class="btn btn-warning" onclick="nextRound()">
-                        ⚠️ Start Round 3: Add Delays
-                    </button>
-                `;
-            } else if (state.currentRound === 3) {
-                controlPanel.innerHTML = `
-                    <button class="btn btn-success" onclick="showReveal()">
-                        🎉 Show The Reveal
-                    </button>
-                `;
-            }
         }
 
-        function renderPackage(pkg) {
-            const progress = (pkg.currentHub / 4) * 100;
-            let statusClass = 'status-pending';
-            let statusText = 'Pending';
-            
-            if (pkg.duplicate) {
-                statusClass = 'status-duplicate';
-                statusText = '⚠️ DUPLICATE';
-            } else if (pkg.delayed) {
-                statusClass = 'status-delayed';
-                statusText = '🔴 DELAYED';
-            } else if (pkg.status === 'delivered') {
-                statusClass = 'status-delivered';
-                statusText = '✓ Delivered';
-            } else if (pkg.status === 'in-transit') {
-                statusClass = 'status-transit';
-                statusText = 'In Transit';
-            }
-            
-            return `
-                <div class="package-track">
-                    <div class="package-header">
-                        <div class="package-id">${pkg.id}</div>
-                        <div class="package-status ${statusClass}">${statusText}</div>
-                    </div>
-                    <div class="tracking-visual">
-                        <div class="progress-line">
-                            <div class="progress-fill" style="width: ${progress}%"></div>
-                        </div>
-                        ${pkg.currentHub > 0 && pkg.currentHub < 4 ? 
-                            `<div class="package-icon" style="left: ${((pkg.currentHub - 0.5) / 4) * 100}%">📦</div>` : ''}
-                        ${HUBS.map((hub, idx) => `
-                            <div class="hub-point">
-                                <div class="hub-icon ${
-                                    pkg.currentHub === idx ? 'active' :
-                                    pkg.currentHub > idx ? 'completed' :
-                                    pkg.delayed && pkg.currentHub === idx ? 'delayed' : ''
-                                }">
-                                    ${hub.icon}
-                                </div>
-                                <div class="hub-name">${hub.label}</div>
-                                <div class="hub-system">${hub.system}</div>
-                            </div>
-                        `).join('')}
+        function showResults(state) {
+            const podium = document.getElementById('podium');
+            // Ensure teams are sorted before rendering
+            const sortedTeams = [...state.teams].sort((a, b) => {
+                const aTime = a.finishTime ? (a.finishTime - a.startTime) : Infinity;
+                const bTime = b.finishTime ? (b.finishTime - b.startTime) : Infinity;
+                return aTime - bTime;
+            });
+
+            podium.innerHTML = sortedTeams.map((team, idx) => `
+                <div class="podium-place">
+                    <div class="podium-horse">${team.emoji}</div>
+                    <div class="podium-stand">
+                        <div class="place-number">${idx + 1}</div>
+                        <div class="place-team" style="color: ${team.color}">${team.name}</div>
+                        <div class="place-time">${team.raceTime || 'DNF'}s</div>
+                        <div style="margin-top: 5px; font-size: 1rem; font-weight: 500;">${team.totalTaps} taps</div>
                     </div>
                 </div>
-            `;
+            `).join('');
         }
 
         function showScreen(screenId) {
-            document.getElementById('waitingScreen').classList.add('hidden');
-            document.getElementById('playingScreen').classList.add('hidden');
-            document.getElementById('revealScreen').classList.add('hidden');
-            document.getElementById(screenId).classList.remove('hidden');
-        }
-
-        // Button handlers
-        document.getElementById('startBtn').addEventListener('click', () => {
-            socket.emit('startGame');
-        });
-
-        document.getElementById('resetBtn').addEventListener('click', () => {
-            socket.emit('resetGame');
-        });
-
-        function nextRound() {
-            socket.emit('nextRound');
+            document.querySelectorAll('.waiting-screen, .countdown-screen, .racing-screen, .finished-screen').forEach(s => {
+                s.classList.remove('active');
+            });
+            document.getElementById(screenId).classList.add('active');
         }
 
         function showReveal() {
-            socket.emit('showReveal');
+            document.getElementById('revealContent').style.display = 'block';
+            document.querySelector('.reveal-btn').style.display = 'none';
         }
+
+        function resetGame() {
+            socket.emit('resetGame');
+        }
+
+        document.getElementById('startBtn').addEventListener('click', () => {
+            socket.emit('startGame');
+        });
     </script>
 </body>
 </html>
