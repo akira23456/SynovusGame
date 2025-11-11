@@ -517,6 +517,11 @@
                 </div>
                 
                 <div class="stats-panel" id="statsPanel"></div>
+                <div style="text-align: center; margin-top: 30px;">
+                    <button class="reset-btn" id="resetBtn">🔄 Reset Game</button>
+                    <button class="reset-btn" id="skipBtn">⏩ Skip Race (Test)</button>
+                </div>
+                
             </div>
             
             <div id="finishedScreen" class="finished-screen">
@@ -711,6 +716,17 @@
         document.getElementById('startBtn').addEventListener('click', () => {
             socket.emit('startGame');
         });
+
+        // --- Reset Game Button ---
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            socket.emit('resetGame');
+        });
+
+        // --- Skip Race Button ---
+        document.getElementById('skipBtn').addEventListener('click', () => {
+            socket.emit('skipRace');
+        });
+
     </script>
 </body>
 </html>

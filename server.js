@@ -110,6 +110,27 @@ io.on('connection', (socket) => {
         gameState.players = gameState.players.filter(p => p.id !== socket.id);
         io.emit('gameState', gameState);
     });
+
+    socket.on('skipRace', () => {
+        // Only allow if there are players
+        if (gameState.players.length > 0) {
+            assignTeams(); // make sure teams exist
+            gameState.status = 'finished';
+            
+            // Simulate taps and finish positions
+            gameState.teams.forEach(team => {
+                team.position = RACE_DISTANCE;
+                team.totalTaps = 1000; // arbitrary high number
+                team.startTime = Date.now() - 5000; // pretend race started 5s ago
+                team.finishTime = Date.now();
+                team.raceTime = ((team.finishTime - team.startTime) / 1000).toFixed(2);
+            });
+            
+            calculateResults(); // sort winner
+            io.emit('gameState', gameState);
+        }
+    });
+    
 });
 
 function startRace() {
