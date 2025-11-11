@@ -34,9 +34,6 @@ You'll see:
 📱 Players Join:  https://synovusgame.onrender.com/play
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Setup for Presentation
-
-Connect your computer to venue WiFi
-Open http://localhost:3000 in browser (full screen recommended)
 Players scan QR code or visit the /play URL
 Once 3+ players join, click "Start Race!"
 
