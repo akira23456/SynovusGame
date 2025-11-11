@@ -48,14 +48,14 @@ function getLocalIP() {
 
 app.get('/qr', async (req, res) => {
     try {
-        const ip = getLocalIP();
-        const url = `http://${ip}:${PORT}/play`;
+        const url = 'https://synovusgame.onrender.com/play'; // 🌍 your Render app’s public URL
         const qrCode = await QRCode.toDataURL(url);
         res.json({ qrCode, url });
     } catch (err) {
         res.status(500).json({ error: 'Failed to generate QR code' });
     }
 });
+
 
 io.on('connection', (socket) => {
     console.log('New client connected:', socket.id);
@@ -237,10 +237,10 @@ function calculateResults() {
 }
 
 server.listen(PORT, () => {
-    const ip = getLocalIP();
-    console.log(`\n🏇 Horse Racing Game!\n`);
+    console.log(`\n🏇 Horse Racing Game Live!\n`);
     console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-    console.log(`🖥️  Admin Display: http://localhost:${PORT}`);
-    console.log(`📱 Players Join:  http://${ip}:${PORT}/play`);
+    console.log(`🖥️  Admin Display: https://synovusgame.onrender.com`);
+    console.log(`📱 Players Join:   https://synovusgame.onrender.com/play`);
     console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
 });
+
