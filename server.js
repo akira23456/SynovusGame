@@ -21,8 +21,8 @@ let gameState = {
 
 const RACE_DISTANCE = 100; // 100%
 const STAGGER_TIMES = [0, 2000, 4000]; // Team 1: 0s, Team 2: 2s delay, Team 3: 4s delay
-const SPEED_PER_TAP = 0.04; // How much progress per tap (reduced to require ~600 taps per team)
-const FRICTION = 0.02; // Natural slowdown per tick (reduced)
+const SPEED_PER_TAP = 0.12; // How much progress per tap (increased so horses actually move!)
+const FRICTION = 0.01; // Natural slowdown per tick (reduced so taps are more effective)
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'admin.html'));
@@ -76,15 +76,22 @@ io.on('connection', (socket) => {
     });
 
     socket.on('tap', () => {
+        // CRITICAL: Triple-check to prevent pre-tapping before gate opens
         if (gameState.status === 'racing') {
             const player = gameState.players.find(p => p.id === socket.id);
             if (player && player.teamId) {
                 const team = gameState.teams.find(t => t.id === player.teamId);
+                
+                // Only accept taps if:
+                // 1. Team exists
+                // 2. Team's gate has opened (canRace = true)
+                // 3. Team hasn't finished yet (position < RACE_DISTANCE)
                 if (team && team.canRace && team.position < RACE_DISTANCE) {
                     player.taps++;
                     team.velocity += SPEED_PER_TAP;
                     team.totalTaps++;
                 }
+                // If team.canRace is false, tap is silently ignored (gate not open yet)
             }
         }
     });
@@ -92,6 +99,24 @@ io.on('connection', (socket) => {
     socket.on('startGame', () => {
         if (gameState.players.length >= 3) {
             startRace();
+        }
+    });
+
+    socket.on('skipToFinish', () => {
+        // Testing feature: skip to finish
+        if (gameState.status === 'racing' || gameState.status === 'countdown') {
+            gameState.teams.forEach(team => {
+                team.position = RACE_DISTANCE;
+                team.finishTime = Date.now();
+                if (team.startTime) {
+                    team.raceTime = ((team.finishTime - team.startTime) / 1000).toFixed(2);
+                } else {
+                    team.raceTime = '0.00';
+                }
+            });
+            gameState.status = 'finished';
+            calculateResults();
+            io.emit('gameState', gameState);
         }
     });
 
@@ -226,14 +251,18 @@ function assignTeams() {
 }
 
 function calculateResults() {
-    // Sort by finish time
-    gameState.teams.sort((a, b) => {
-        if (!a.finishTime) return 1;
-        if (!b.finishTime) return -1;
-        return (a.finishTime - a.startTime) - (b.finishTime - b.startTime);
-    });
+    // Sort by position (how far they got), highest first
+    gameState.teams.sort((a, b) => b.position - a.position);
     
+    // Winner is the team that went furthest
     gameState.winner = gameState.teams[0].name;
+    
+    // If there's a tie for first place, show all winners
+    const topPosition = Math.round(gameState.teams[0].position);
+    const winners = gameState.teams.filter(t => Math.round(t.position) === topPosition);
+    if (winners.length > 1) {
+        gameState.winner = winners.map(t => t.name).join(' & ') + ' (TIE!)';
+    }
 }
 
 server.listen(PORT, () => {

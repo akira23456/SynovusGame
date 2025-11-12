@@ -522,8 +522,9 @@
         });
 
         function tap() {
-            // Double check we can actually tap
+            // Triple check we can actually tap (gate must be open!)
             if (!canTap) return;
+            if (!myTeamId) return;
             
             socket.emit('tap');
             myTaps++;
@@ -545,6 +546,7 @@
                 canTap = false;
                 tapButton.style.opacity = '0.5';
                 tapButton.style.cursor = 'not-allowed';
+                tapButton.style.pointerEvents = 'none';
                 document.getElementById('statusText').textContent = `Get Ready! ${state.countdownTime}...`;
                 document.getElementById('statusText').style.color = '#ef4444';
             } else if (state.status === 'racing') {
@@ -576,12 +578,14 @@
                             canTap = true;
                             tapButton.style.opacity = '1';
                             tapButton.style.cursor = 'pointer';
+                            tapButton.style.pointerEvents = 'auto';
                             document.getElementById('statusText').textContent = 'TAP TAP TAP!!!';
                             document.getElementById('statusText').style.color = '#10b981';
                         } else {
                             canTap = false;
                             tapButton.style.opacity = '0.5';
                             tapButton.style.cursor = 'not-allowed';
+                            tapButton.style.pointerEvents = 'none'; // Completely disable clicking
                             document.getElementById('statusText').textContent = `Gate opens soon...`;
                             document.getElementById('statusText').style.color = '#fbbf24';
                         }
@@ -604,6 +608,7 @@
                 canTap = false;
                 tapButton.style.opacity = '0.5';
                 tapButton.style.cursor = 'not-allowed';
+                tapButton.style.pointerEvents = 'none';
                 const myPlayer = state.players.find(p => p.id === socket.id);
                 if (myPlayer && myPlayer.teamId) {
                     const myTeam = state.teams.find(t => t.id === myPlayer.teamId);
@@ -634,25 +639,36 @@
         }
 
         function showFinished(myTeam, allTeams) {
-            const place = allTeams.findIndex(t => t.id === myTeam.id) + 1;
+            // Sort teams by position (how far they got), highest first
+            const sortedTeams = [...allTeams].sort((a, b) => b.position - a.position);
             
+            // Find my team's placement (can have ties!)
+            const myPosition = Math.round(myTeam.position);
+            const teamsAheadOfMe = sortedTeams.filter(t => Math.round(t.position) > myPosition).length;
+            const place = teamsAheadOfMe + 1;
+            
+            // Check for ties (teams at same position)
+            const teamsAtSamePosition = sortedTeams.filter(t => Math.round(t.position) === myPosition);
+            const isTied = teamsAtSamePosition.length > 1;
+            
+            // Set icon and text based on placement
             if (place === 1) {
                 document.getElementById('resultIcon').textContent = '🏆';
-                document.getElementById('resultTitle').textContent = 'YOU WON!';
+                document.getElementById('resultTitle').textContent = isTied ? 'TIED FOR 1ST!' : 'YOU WON!';
                 document.getElementById('resultTitle').style.color = '#fbbf24';
             } else if (place === 2) {
                 document.getElementById('resultIcon').textContent = '🥈';
-                document.getElementById('resultTitle').textContent = '2nd Place!';
+                document.getElementById('resultTitle').textContent = isTied ? 'TIED FOR 2ND!' : '2nd Place!';
                 document.getElementById('resultTitle').style.color = '#9ca3af';
             } else {
                 document.getElementById('resultIcon').textContent = '🥉';
-                document.getElementById('resultTitle').textContent = `${place}rd Place`;
+                document.getElementById('resultTitle').textContent = isTied ? `TIED FOR ${place}TH!` : `${place}rd Place`;
                 document.getElementById('resultTitle').style.color = '#f97316';
             }
             
             document.getElementById('resultStats').innerHTML = `
                 <div>${myTeam.name}</div>
-                <div style="margin-top: 10px;">Time: ${myTeam.raceTime}s</div>
+                <div style="margin-top: 10px;">Distance: ${myPosition}%</div>
                 <div>You tapped: ${myTaps} times</div>
                 <div>Team total: ${myTeam.totalTaps} taps</div>
             `;

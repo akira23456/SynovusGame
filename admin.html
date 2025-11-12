@@ -479,14 +479,21 @@
         
         .reset-btn {
             padding: 20px 50px;
-            background: white;
-            color: #667eea;
-            border: none;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.2);
             border-radius: 15px;
             font-size: 1.3rem;
             cursor: pointer;
-            margin-top: 40px;
             font-weight: bold;
+            box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+            transition: all 0.3s;
+        }
+        
+        .reset-btn:hover {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 35px rgba(239, 68, 68, 0.5);
         }
     </style>
 </head>
@@ -537,7 +544,7 @@
             <!-- Racing Screen -->
             <div id="racingScreen" class="racing-screen">
                 <h2 style="color: #667eea; font-size: 2.5rem; text-align: center; margin-bottom: 30px;">
-                    🏁 A STARTS FIRST → B STARTS NEXT → C STARTS LAST!
+                    🏁 RACE IN PROGRESS!
                 </h2>
                 
                 <div class="race-track">
@@ -554,15 +561,22 @@
             
             <!-- Finished Screen -->
             <div id="finishedScreen" class="finished-screen">
-                <h2 style="color: #667eea; font-size: 3rem; text-align: center; margin-bottom: 30px;">
+                <h2 style="color: #667eea; font-size: 3rem; text-align: center; margin-bottom: 20px;">
                     🏆 Race Complete!
                 </h2>
+                
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <h1 id="winnerName" style="color: #fbbf24; font-size: 2.5rem; font-weight: 700;"></h1>
+                </div>
                 
                 <div class="podium" id="podium"></div>
                 
                 <div style="text-align: center;">
                     <button class="reveal-btn" onclick="showReveal()">
                         🎉 Show The Reveal
+                    </button>
+                    <button class="reset-btn" onclick="resetGame()" style="display: inline-block; margin-left: 20px;">
+                        🔄 Reset & Race Again
                     </button>
                 </div>
                 
@@ -603,13 +617,33 @@
                             measures latency, and ensures nothing gets lost!</strong>
                         </p>
                         
-                        <button class="reset-btn" onclick="resetGame()">
+                        <button class="reset-btn" onclick="resetGame()" style="margin-top: 40px;">
                             🔄 Race Again
                         </button>
                     </div>
                 </div>
             </div>
         </div>
+        
+        <!-- Skip Button for Testing (bottom right corner) -->
+        <button id="skipBtn" style="
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 30px;
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+            border: 2px solid white;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            z-index: 9999;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            display: none;
+        " onclick="skipToFinish()">
+            ⏭️ Skip to Finish (Testing)
+        </button>
     </div>
 
     <script>
@@ -643,6 +677,8 @@
             `).join('');
             
             const startBtn = document.getElementById('startBtn');
+            const skipBtn = document.getElementById('skipBtn');
+            
             if (state.players.length >= 3) {
                 startBtn.disabled = false;
                 document.getElementById('minPlayerMsg').style.display = 'none';
@@ -653,16 +689,30 @@
             
             if (state.status === 'waiting') {
                 showScreen('waitingScreen');
+                skipBtn.style.display = 'none';
             } else if (state.status === 'countdown') {
                 showScreen('countdownScreen');
                 document.getElementById('countdownNumber').textContent = state.countdownTime;
+                skipBtn.style.display = 'block';
             } else if (state.status === 'racing') {
                 showScreen('racingScreen');
                 updateRace(state);
+                skipBtn.style.display = 'block';
             } else if (state.status === 'finished') {
                 showScreen('finishedScreen');
                 showResults(state);
+                skipBtn.style.display = 'none';
             }
+        }
+
+        function skipToFinish() {
+            if (confirm('Skip to finish? (Testing only)')) {
+                socket.emit('skipToFinish');
+            }
+        }
+
+        function resetGame() {
+            socket.emit('resetGame');
         }
 
         function updateRace(state) {
@@ -696,18 +746,22 @@
         }
 
         function showResults(state) {
+            document.getElementById('winnerName').textContent = state.winner;
+            
             const podium = document.getElementById('podium');
-            podium.innerHTML = state.teams.map((team, idx) => `
+            podium.innerHTML = state.teams.map((team, idx) => {
+                const distance = Math.round(team.position);
+                return `
                 <div class="podium-place">
                     <div class="podium-horse">${team.emoji}</div>
                     <div class="podium-stand">
                         <div class="place-number">${idx + 1}</div>
                         <div class="place-team">${team.name}</div>
-                        <div class="place-time">${team.raceTime}s</div>
+                        <div class="place-time">${distance}% Distance</div>
                         <div style="margin-top: 10px; font-size: 1rem;">${team.totalTaps} taps</div>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         }
 
         function showScreen(screenId) {
