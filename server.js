@@ -92,7 +92,7 @@ io.on('connection', (socket) => {
                     team.totalTaps++;
                 }
                 // If team.canRace is false, tap is silently ignored (gate not open yet)
-                // If team.finished is true, tap is ignored (already at 500 taps)
+                // If team.finished is true, tap is ignored (already at 1000 taps)
             }
         }
     });
@@ -202,7 +202,7 @@ function startRaceLoop() {
                 team.position += team.velocity;
                 team.velocity = 0; // Reset velocity each tick (instant response to taps)
                 
-                // Check if team reached 500 taps (100%)
+                // Check if team reached 1000 taps (100%)
                 if (team.position >= RACE_DISTANCE && !team.finished) {
                     team.position = RACE_DISTANCE;
                     team.finished = true;
@@ -285,7 +285,7 @@ function assignTeams() {
 }
 
 function calculateResults() {
-    // Sort by finish time (who reached 500 taps first)
+    // Sort by finish time (who reached 1000 taps first)
     // Teams that finished go first, sorted by time
     // Teams that didn't finish go last, sorted by position
     gameState.teams.sort((a, b) => {

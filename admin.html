@@ -545,7 +545,7 @@
             <!-- Racing Screen -->
             <div id="racingScreen" class="racing-screen">
                 <h2 style="color: #667eea; font-size: 2.5rem; text-align: center; margin-bottom: 30px;">
-                    🏁 RACE TO 500 TAPS!
+                    🏁 RACE TO 1000 TAPS!
                 </h2>
                 
                 <div class="race-track">
@@ -596,7 +596,7 @@
                                 <p>= Transaction Priority Queues - High priority transactions (Team A) process immediately, others queue based on priority</p>
                             </div>
                             <div class="mapping-card">
-                                <h3>👆 Your Taps (500 to Win)</h3>
+                                <h3>👆 Your Taps (1000 to Win)</h3>
                                 <p>= System Processing Capacity - More resources dedicated = faster transaction completion</p>
                             </div>
                             <div class="mapping-card">
@@ -604,7 +604,7 @@
                                 <p>= Transaction Latency Monitoring - We measure exactly how long each transaction takes from start to finish</p>
                             </div>
                             <div class="mapping-card">
-                                <h3>🏁 Race to 500 Taps</h3>
+                                <h3>🏁 Race to 1000 Taps</h3>
                                 <p>= Transaction Pipeline - Every transaction must complete all processing steps to reach completion</p>
                             </div>
                             <div class="mapping-card">
@@ -653,7 +653,7 @@
                             </p>
                             
                             <p style="font-size: 1.3rem; margin: 15px 0;">
-                                <strong>4. Accurate Time Tracking:</strong> We measured exactly how long each team took from their gate opening to reaching 500 taps. In production, we track transaction latency to the millisecond.
+                                <strong>4. Accurate Time Tracking:</strong> We measured exactly how long each team took from their gate opening to reaching 1000 taps. In production, we track transaction latency to the millisecond.
                             </p>
                             
                             <p style="font-size: 1.3rem; margin: 15px 0;">
@@ -767,7 +767,7 @@
             const lanes = document.getElementById('lanes');
             lanes.innerHTML = state.teams.map(team => {
                 const progress = Math.min(100, team.position);
-                const tapsRemaining = Math.max(0, 500 - team.totalTaps);
+                const tapsRemaining = Math.max(0, 1000 - team.totalTaps);
                 
                 // Accurate linear horse positioning:
                 // Track starts at 100px (after gate), ends at ~90% of container
@@ -827,7 +827,7 @@
                 return `
                 <div class="stat-card" style="${cardStyle}">
                     <div class="stat-team" style="color: ${team.color}">${team.name}</div>
-                    <div class="stat-value">${team.totalTaps} / 500</div>
+                    <div class="stat-value">${team.totalTaps} / 1000</div>
                     <div class="stat-label">
                         ${team.finished ? `✅ Done in ${team.raceTime}s` : team.canRace ? `⏱️ ${team.currentTime}s` : 'Not started'}
                         ${team.disrupted && team.disruptionType === 'disconnected' ? '<div style="color: #ef4444; margin-top: 5px;">⚠️ DISCONNECTED</div>' : ''}
@@ -849,7 +849,7 @@
                         <div class="place-number">${idx + 1}</div>
                         <div class="place-team">${team.name}</div>
                         <div class="place-time">${team.finished ? `⏱️ ${team.raceTime}s` : `DNF (${team.totalTaps} taps)`}</div>
-                        <div style="margin-top: 10px; font-size: 1rem;">${team.totalTaps} / 500 taps</div>
+                        <div style="margin-top: 10px; font-size: 1rem;">${team.totalTaps} / 1000 taps</div>
                     </div>
                 </div>
             `}).join('');
