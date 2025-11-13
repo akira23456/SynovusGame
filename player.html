@@ -485,6 +485,22 @@
                     </p>
                 </div>
             </div>
+            
+            <!-- Pending Results Screen -->
+            <div id="pendingScreen" class="finished-screen">
+                <div class="result-screen">
+                    <div class="spinner"></div>
+                    <h2 style="color: #667eea; font-size: 2.5rem; margin: 30px 0;">⏱️ Race Complete!</h2>
+                    <div id="pendingStats" style="font-size: 1.5rem; color: #4b5563; line-height: 2;">
+                        <div style="margin: 15px 0;"><strong id="pendingTeamName">Your Team</strong></div>
+                        <div style="margin: 15px 0;" id="pendingTime">Time: --</div>
+                        <div style="margin: 15px 0;" id="pendingTaps">Team Taps: --</div>
+                    </div>
+                    <p style="margin-top: 40px; font-size: 1.8rem; color: #667eea; font-weight: 700; animation: pulse 2s infinite;">
+                        📊 Calculating Results...
+                    </p>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -563,9 +579,10 @@
                         // Update all teams stats
                         const teamsGrid = document.querySelector('.teams-stat-grid');
                         teamsGrid.innerHTML = state.teams.map(team => `
-                            <div class="team-stat-item" style="border-color: ${team.color}">
+                            <div class="team-stat-item" style="border-color: ${team.color}; ${team.finished ? 'background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);' : ''}">
                                 <div class="team-stat-name" style="color: ${team.color}">${team.name}</div>
                                 <div class="team-stat-taps">${team.totalTaps}</div>
+                                ${team.finished ? '<div style="color: #10b981; font-weight: 700;">✅ DONE</div>' : ''}
                             </div>
                         `).join('');
                         
@@ -573,21 +590,36 @@
                         const progress = Math.min(100, Math.round(myTeam.position));
                         document.getElementById('progressFill').style.width = `${progress}%`;
                         
-                        // Control tapping based on team's canRace status
-                        if (myTeam.canRace) {
+                        const tapsRemaining = Math.max(0, 500 - myTeam.totalTaps);
+                        
+                        // Control tapping based on team's status
+                        if (myTeam.finished) {
+                            canTap = false;
+                            tapButton.style.opacity = '0.3';
+                            tapButton.style.cursor = 'not-allowed';
+                            tapButton.style.pointerEvents = 'none';
+                            tapButton.style.filter = 'grayscale(100%)';
+                            document.getElementById('statusText').textContent = `✅ SUCCESS! Finished in ${myTeam.raceTime}s`;
+                            document.getElementById('statusText').style.color = '#10b981';
+                            document.getElementById('statusText').style.fontSize = '1.8rem';
+                        } else if (myTeam.canRace) {
                             canTap = true;
                             tapButton.style.opacity = '1';
                             tapButton.style.cursor = 'pointer';
                             tapButton.style.pointerEvents = 'auto';
-                            document.getElementById('statusText').textContent = 'TAP TAP TAP!!!';
+                            tapButton.style.filter = 'none';
+                            document.getElementById('statusText').textContent = `⏱️ ${myTeam.currentTime}s | ${tapsRemaining} taps left!`;
                             document.getElementById('statusText').style.color = '#10b981';
+                            document.getElementById('statusText').style.fontSize = '1.5rem';
                         } else {
                             canTap = false;
                             tapButton.style.opacity = '0.5';
                             tapButton.style.cursor = 'not-allowed';
-                            tapButton.style.pointerEvents = 'none'; // Completely disable clicking
+                            tapButton.style.pointerEvents = 'none';
+                            tapButton.style.filter = 'none';
                             document.getElementById('statusText').textContent = `Gate opens soon...`;
                             document.getElementById('statusText').style.color = '#fbbf24';
+                            document.getElementById('statusText').style.fontSize = '1.5rem';
                         }
                         
                         // Only switch screens on first time
@@ -609,10 +641,20 @@
                 tapButton.style.opacity = '0.5';
                 tapButton.style.cursor = 'not-allowed';
                 tapButton.style.pointerEvents = 'none';
+                
                 const myPlayer = state.players.find(p => p.id === socket.id);
                 if (myPlayer && myPlayer.teamId) {
                     const myTeam = state.teams.find(t => t.id === myPlayer.teamId);
-                    showFinished(myTeam, state.teams);
+                    
+                    // Show pending results screen first
+                    if (!document.getElementById('finishedScreen').classList.contains('active')) {
+                        showPendingResults(myTeam);
+                        
+                        // After 3 seconds, show final placement
+                        setTimeout(() => {
+                            showFinished(myTeam, state.teams);
+                        }, 3000);
+                    }
                 }
             }
         });
@@ -630,6 +672,94 @@
             }
         });
 
+        // DEMO: Handle service disruptions
+        socket.on('serviceDisruption', (data) => {
+            if (data.teamId === myTeamId) {
+                const statusText = document.getElementById('statusText');
+                
+                if (data.type === 'disconnected') {
+                    // Team C scenario: Full disconnection, can't tap
+                    canTap = false;
+                    tapButton.style.opacity = '0.3';
+                    tapButton.style.cursor = 'not-allowed';
+                    tapButton.style.pointerEvents = 'none';
+                    tapButton.style.filter = 'grayscale(100%)';
+                    tapButton.style.border = '5px solid #ef4444';
+                    
+                    statusText.textContent = '⚠️ SERVICE DISCONNECTION';
+                    statusText.style.color = '#ef4444';
+                    statusText.style.fontSize = '1.8rem';
+                    statusText.style.fontWeight = '700';
+                    statusText.style.animation = 'pulse 1s infinite';
+                    
+                    // Show overlay message
+                    const overlay = document.createElement('div');
+                    overlay.id = 'disruptionOverlay';
+                    overlay.style.cssText = `
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        background: rgba(239, 68, 68, 0.95);
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        z-index: 10000;
+                        color: white;
+                        padding: 40px;
+                        text-align: center;
+                    `;
+                    overlay.innerHTML = `
+                        <div style="font-size: 5rem; margin-bottom: 30px;">⚠️</div>
+                        <h1 style="font-size: 2.5rem; margin-bottom: 20px;">SERVICE DISCONNECTION</h1>
+                        <p style="font-size: 1.5rem; line-height: 1.6;">
+                            Your connection to the transaction system has been lost.
+                            Unable to process further taps.
+                        </p>
+                        <div style="margin-top: 40px; font-size: 1.2rem; opacity: 0.9;">
+                            (Demo: Simulating network failure)
+                        </div>
+                    `;
+                    document.body.appendChild(overlay);
+                    
+                } else if (data.type === 'disconnected-continue') {
+                    // Team B scenario: Warning but can still tap
+                    tapButton.style.border = '5px solid #f59e0b';
+                    tapButton.style.boxShadow = '0 0 20px rgba(245, 158, 11, 0.6)';
+                    
+                    statusText.textContent = '⚠️ SERVICE WAS DISCONNECTED - CONTINUING';
+                    statusText.style.color = '#f59e0b';
+                    statusText.style.fontSize = '1.4rem';
+                    statusText.style.fontWeight = '700';
+                    
+                    // Show warning banner
+                    const banner = document.createElement('div');
+                    banner.id = 'warningBanner';
+                    banner.style.cssText = `
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+                        color: white;
+                        padding: 15px;
+                        text-align: center;
+                        font-size: 1.2rem;
+                        font-weight: 700;
+                        z-index: 9999;
+                        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                        animation: pulse 2s infinite;
+                    `;
+                    banner.innerHTML = `
+                        ⚠️ SERVICE DISCONNECTED - OPERATING IN DEGRADED MODE
+                    `;
+                    document.body.appendChild(banner);
+                }
+            }
+        });
+
         function updateTeamScreen(team) {
             const banner = document.getElementById('teamBanner');
             banner.style.background = team.color;
@@ -638,39 +768,49 @@
             document.getElementById('teamInfo').textContent = `Get Ready to TAP!`;
         }
 
+        function showPendingResults(myTeam) {
+            document.getElementById('pendingTeamName').textContent = myTeam.name;
+            document.getElementById('pendingTeamName').style.color = myTeam.color;
+            
+            if (myTeam.finished) {
+                document.getElementById('pendingTime').textContent = `⏱️ Finished in ${myTeam.raceTime}s`;
+            } else {
+                document.getElementById('pendingTime').textContent = `⏱️ Final Time: ${myTeam.currentTime}s (DNF)`;
+            }
+            
+            document.getElementById('pendingTaps').textContent = `Team Taps: ${myTeam.totalTaps} / 500`;
+            
+            showScreen('pendingScreen');
+        }
+
         function showFinished(myTeam, allTeams) {
-            // Sort teams by position (how far they got), highest first
-            const sortedTeams = [...allTeams].sort((a, b) => b.position - a.position);
-            
-            // Find my team's placement (can have ties!)
-            const myPosition = Math.round(myTeam.position);
-            const teamsAheadOfMe = sortedTeams.filter(t => Math.round(t.position) > myPosition).length;
-            const place = teamsAheadOfMe + 1;
-            
-            // Check for ties (teams at same position)
-            const teamsAtSamePosition = sortedTeams.filter(t => Math.round(t.position) === myPosition);
-            const isTied = teamsAtSamePosition.length > 1;
+            // Ranking is based on finish time (already sorted by server)
+            const place = allTeams.findIndex(t => t.id === myTeam.id) + 1;
             
             // Set icon and text based on placement
             if (place === 1) {
                 document.getElementById('resultIcon').textContent = '🏆';
-                document.getElementById('resultTitle').textContent = isTied ? 'TIED FOR 1ST!' : 'YOU WON!';
+                document.getElementById('resultTitle').textContent = 'YOU WON!';
                 document.getElementById('resultTitle').style.color = '#fbbf24';
             } else if (place === 2) {
                 document.getElementById('resultIcon').textContent = '🥈';
-                document.getElementById('resultTitle').textContent = isTied ? 'TIED FOR 2ND!' : '2nd Place!';
+                document.getElementById('resultTitle').textContent = '2nd Place!';
                 document.getElementById('resultTitle').style.color = '#9ca3af';
-            } else {
+            } else if (place === 3) {
                 document.getElementById('resultIcon').textContent = '🥉';
-                document.getElementById('resultTitle').textContent = isTied ? `TIED FOR ${place}TH!` : `${place}rd Place`;
+                document.getElementById('resultTitle').textContent = '3rd Place';
                 document.getElementById('resultTitle').style.color = '#f97316';
+            } else {
+                document.getElementById('resultIcon').textContent = '🎯';
+                document.getElementById('resultTitle').textContent = `${place}th Place`;
+                document.getElementById('resultTitle').style.color = '#6b7280';
             }
             
             document.getElementById('resultStats').innerHTML = `
                 <div>${myTeam.name}</div>
-                <div style="margin-top: 10px;">Distance: ${myPosition}%</div>
+                <div style="margin-top: 10px;">${myTeam.finished ? `⏱️ Time: ${myTeam.raceTime}s` : 'Did not finish'}</div>
+                <div>Team taps: ${myTeam.totalTaps} / 500</div>
                 <div>You tapped: ${myTaps} times</div>
-                <div>Team total: ${myTeam.totalTaps} taps</div>
             `;
             
             showScreen('finishedScreen');
@@ -682,6 +822,7 @@
             document.getElementById('teamScreen').classList.remove('active');
             document.getElementById('racingScreen').classList.remove('active');
             document.getElementById('finishedScreen').classList.remove('active');
+            document.getElementById('pendingScreen').classList.remove('active');
             document.getElementById(screenId).classList.add('active');
         }
     </script>

@@ -21,8 +21,9 @@ let gameState = {
 
 const RACE_DISTANCE = 100; // 100%
 const STAGGER_TIMES = [0, 2000, 4000]; // Team 1: 0s, Team 2: 2s delay, Team 3: 4s delay
-const SPEED_PER_TAP = 0.12; // How much progress per tap (increased so horses actually move!)
-const FRICTION = 0.01; // Natural slowdown per tick (reduced so taps are more effective)
+const TAPS_TO_WIN = 500; // Exactly 500 taps to finish
+const SPEED_PER_TAP = 100 / TAPS_TO_WIN; // 0.2% per tap = 500 taps to reach 100%
+const FRICTION = 0; // No friction - every tap counts exactly
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'admin.html'));
@@ -85,13 +86,14 @@ io.on('connection', (socket) => {
                 // Only accept taps if:
                 // 1. Team exists
                 // 2. Team's gate has opened (canRace = true)
-                // 3. Team hasn't finished yet (position < RACE_DISTANCE)
-                if (team && team.canRace && team.position < RACE_DISTANCE) {
+                // 3. Team hasn't finished yet
+                if (team && team.canRace && !team.finished) {
                     player.taps++;
                     team.velocity += SPEED_PER_TAP;
                     team.totalTaps++;
                 }
                 // If team.canRace is false, tap is silently ignored (gate not open yet)
+                // If team.finished is true, tap is ignored (already at 500 taps)
             }
         }
     });
@@ -171,59 +173,88 @@ function startRace() {
 
 function startRaceLoop() {
     const raceInterval = setInterval(() => {
-        let raceOver = false;
+        let allFinished = true;
         
         gameState.teams.forEach(team => {
-            if (team.canRace && team.position < RACE_DISTANCE) {
-                // Apply velocity to position
-                team.position += team.velocity;
-                
-                // Apply friction
-                team.velocity = Math.max(0, team.velocity - FRICTION);
-                
-                // Cap position at finish line
-                if (team.position >= RACE_DISTANCE) {
-                    team.position = RACE_DISTANCE;
-                    if (!team.finishTime) {
-                        team.finishTime = Date.now();
-                        team.raceTime = ((team.finishTime - team.startTime) / 1000).toFixed(2);
-                        raceOver = true; // End race as soon as first horse finishes
-                    }
+            if (team.canRace && !team.finished) {
+                // Update timer
+                if (team.startTime) {
+                    team.currentTime = ((Date.now() - team.startTime) / 1000).toFixed(2);
                 }
+                
+                // DEMO: Service disruption scenarios
+                // Team C at 250 taps - full disconnection
+                if (team.name === 'Horse C' && team.totalTaps >= 250 && !team.disrupted) {
+                    team.disrupted = true;
+                    team.disruptionType = 'disconnected';
+                    io.emit('serviceDisruption', { teamId: team.id, type: 'disconnected' });
+                    console.log(`DEMO: Team C service disconnection at 250 taps`);
+                }
+                
+                // Team B at 450 taps - disconnected but can still tap
+                if (team.name === 'Horse B' && team.totalTaps >= 450 && !team.disrupted) {
+                    team.disrupted = true;
+                    team.disruptionType = 'disconnected-continue';
+                    io.emit('serviceDisruption', { teamId: team.id, type: 'disconnected-continue' });
+                    console.log(`DEMO: Team B service was disconnected at 450 taps (but can continue)`);
+                }
+                
+                // Apply velocity to position (no friction!)
+                team.position += team.velocity;
+                team.velocity = 0; // Reset velocity each tick (instant response to taps)
+                
+                // Check if team reached 500 taps (100%)
+                if (team.position >= RACE_DISTANCE && !team.finished) {
+                    team.position = RACE_DISTANCE;
+                    team.finished = true;
+                    team.finishTime = Date.now();
+                    team.raceTime = ((team.finishTime - team.startTime) / 1000).toFixed(2);
+                    console.log(`${team.name} FINISHED! Time: ${team.raceTime}s, Taps: ${team.totalTaps}`);
+                }
+                
+                if (!team.finished) {
+                    allFinished = false;
+                }
+            } else if (!team.canRace) {
+                allFinished = false; // Team hasn't started yet
             }
         });
         
-        // End race when first horse finishes
-        if (raceOver) {
+        io.emit('gameState', gameState);
+        
+        // End race when all teams finish
+        if (allFinished) {
             clearInterval(raceInterval);
-            
-            // Set finish times for remaining teams
-            gameState.teams.forEach(team => {
-                if (!team.finishTime) {
-                    team.finishTime = Date.now();
-                    team.raceTime = team.startTime ? ((team.finishTime - team.startTime) / 1000).toFixed(2) : 'DNF';
-                }
-            });
-            
             gameState.status = 'finished';
             calculateResults();
+            io.emit('gameState', gameState);
         }
-        
-        io.emit('gameState', gameState);
     }, 50); // 20 FPS
 }
 
 function assignTeams() {
     const shuffled = [...gameState.players].sort(() => Math.random() - 0.5);
-    const teamSize = Math.ceil(shuffled.length / 3);
+    const totalPlayers = shuffled.length;
+    const baseTeamSize = Math.floor(totalPlayers / 3);
+    const extras = totalPlayers % 3; // 0, 1, or 2 extra players
+    
     gameState.teams = [];
 
     const teamNames = ['Horse A', 'Horse B', 'Horse C'];
     const teamColors = ['#ef4444', '#3b82f6', '#10b981'];
     const teamEmojis = ['🐴', '🐴', '🐴'];
     
+    let currentIndex = 0;
+    
     for (let i = 0; i < 3; i++) {
-        const teamMembers = shuffled.slice(i * teamSize, (i + 1) * teamSize);
+        // Team A gets first extra, Team B gets second extra, Team C gets none
+        let teamSize = baseTeamSize;
+        if (i === 0 && extras >= 1) teamSize++; // Team A gets extra if 1 or 2 extras
+        if (i === 1 && extras >= 2) teamSize++; // Team B gets extra if 2 extras
+        
+        const teamMembers = shuffled.slice(currentIndex, currentIndex + teamSize);
+        currentIndex += teamSize;
+        
         if (teamMembers.length > 0) {
             const team = {
                 id: i + 1,
@@ -237,6 +268,10 @@ function assignTeams() {
                 startTime: null,
                 finishTime: null,
                 raceTime: null,
+                currentTime: '0.00',
+                finished: false,
+                disrupted: false,
+                disruptionType: null,
                 totalTaps: 0,
                 staggerDelay: STAGGER_TIMES[i] / 1000
             };
@@ -251,18 +286,20 @@ function assignTeams() {
 }
 
 function calculateResults() {
-    // Sort by position (how far they got), highest first
-    gameState.teams.sort((a, b) => b.position - a.position);
+    // Sort by finish time (who reached 500 taps first)
+    // Teams that finished go first, sorted by time
+    // Teams that didn't finish go last, sorted by position
+    gameState.teams.sort((a, b) => {
+        if (a.finished && !b.finished) return -1;
+        if (!a.finished && b.finished) return 1;
+        if (a.finished && b.finished) {
+            return parseFloat(a.raceTime) - parseFloat(b.raceTime);
+        }
+        return b.position - a.position;
+    });
     
-    // Winner is the team that went furthest
+    // Winner is the team with fastest time
     gameState.winner = gameState.teams[0].name;
-    
-    // If there's a tie for first place, show all winners
-    const topPosition = Math.round(gameState.teams[0].position);
-    const winners = gameState.teams.filter(t => Math.round(t.position) === topPosition);
-    if (winners.length > 1) {
-        gameState.winner = winners.map(t => t.name).join(' & ') + ' (TIE!)';
-    }
 }
 
 server.listen(PORT, () => {
