@@ -21,8 +21,8 @@ let gameState = {
 
 const RACE_DISTANCE = 100; // 100%
 const STAGGER_TIMES = [0, 0, 0]; // Team 1: 0s, Team 2: 2s delay, Team 3: 4s delay
-const TAPS_TO_WIN = 1000; // Exactly 1000 taps to finish
-const SPEED_PER_TAP = 100 / TAPS_TO_WIN; // 0.2% per tap = 500 taps to reach 100%
+const TAPS_TO_WIN = 2000; // Exactly 2000 taps to finish
+const SPEED_PER_TAP = 100 / TAPS_TO_WIN; // 0.05% per tap = 2000 taps to reach 100%
 const FRICTION = 0; // No friction - every tap counts exactly
 
 app.get('/', (req, res) => {
@@ -49,7 +49,7 @@ function getLocalIP() {
 
 app.get('/qr', async (req, res) => {
     try {
-        const url = 'https://synovusgame.onrender.com/play'; // 🌍 your Render app’s public URL
+        const url = 'https://synovusgame.onrender.com/play'; // 🌍 your Render app's public URL
         const qrCode = await QRCode.toDataURL(url);
         res.json({ qrCode, url });
     } catch (err) {
@@ -86,13 +86,15 @@ io.on('connection', (socket) => {
                 // 1. Team exists
                 // 2. Team's gate has opened (canRace = true)
                 // 3. Team hasn't finished yet
-                if (team && team.canRace && !team.finished) {
+                // 4. Team is not disrupted
+                if (team && team.canRace && !team.finished && !team.disrupted) {
                     player.taps++;
                     team.velocity += SPEED_PER_TAP;
                     team.totalTaps++;
                 }
                 // If team.canRace is false, tap is silently ignored (gate not open yet)
                 // If team.finished is true, tap is ignored (already at 1000 taps)
+                // If team.disrupted is true, tap is ignored (service disconnection)
             }
         }
     });
@@ -182,25 +184,37 @@ function startRaceLoop() {
                 }
                 
                 // DEMO: Service disruption scenarios
-                // Team C at 250 taps - full disconnection
-                if (team.name === 'Horse C' && team.totalTaps >= 500 && !team.disrupted) {
+                // Team C at 1200 taps - full disconnection
+                if (team.name === 'Horse C' && team.totalTaps >= 1200 && !team.disrupted) {
                     team.disrupted = true;
                     team.disruptionType = 'disconnected';
                     io.emit('serviceDisruption', { teamId: team.id, type: 'disconnected' });
-                    console.log(`DEMO: Team C service disconnection at 250 taps`);
+                    console.log(`DEMO: Team C service disconnection at 1200 taps`);
                 }
                 
-                // Team B at 450 taps - disconnected but can still tap
-                if (team.name === 'Horse B' && team.totalTaps >= 900 && !team.disrupted) {
+                // Team B at 1750 taps - disconnected and cannot tap, but horse continues to finish
+                if (team.name === 'Horse B' && team.totalTaps >= 1750 && !team.disrupted) {
                     team.disrupted = true;
-                    team.disruptionType = 'disconnected-continue';
-                    io.emit('serviceDisruption', { teamId: team.id, type: 'disconnected-continue' });
-                    console.log(`DEMO: Team B service was disconnected at 450 taps (but can continue)`);
+                    team.disruptionType = 'disconnected';
+                    io.emit('serviceDisruption', { teamId: team.id, type: 'disconnected' });
+                    console.log(`DEMO: Team B service disconnection at 1750 taps - but horse continues momentum`);
+                    
+                    // Give Team B momentum to continue to finish (250 taps worth of progress)
+                    // This simulates the system completing the transaction despite the disconnection
+                    team.momentum = true;
+                    team.momentumTicks = 0;
+                    team.momentumPerTick = 0.05; // 0.05% per tick to finish remaining 250 taps
                 }
                 
                 // Apply velocity to position (no friction!)
                 team.position += team.velocity;
                 team.velocity = 0; // Reset velocity each tick (instant response to taps)
+                
+                // Apply momentum if team has it (continues moving after disconnection)
+                if (team.momentum) {
+                    team.position += team.momentumPerTick;
+                    team.momentumTicks++;
+                }
                 
                 // Check if team reached 1000 taps (100%)
                 if (team.position >= RACE_DISTANCE && !team.finished) {
@@ -309,4 +323,3 @@ server.listen(PORT, () => {
     console.log(`📱 Players Join:   https://synovusgame.onrender.com/play`);
     console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
 });
-

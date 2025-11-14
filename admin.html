@@ -545,7 +545,7 @@
             <!-- Racing Screen -->
             <div id="racingScreen" class="racing-screen">
                 <h2 style="color: #667eea; font-size: 2.5rem; text-align: center; margin-bottom: 30px;">
-                    🏁 RACE TO 1000 TAPS!
+                    🏁 RACE TO 2000 TAPS!
                 </h2>
                 
                 <div class="race-track">
@@ -562,15 +562,31 @@
             
             <!-- Finished Screen -->
             <div id="finishedScreen" class="finished-screen">
-                <h2 style="color: #667eea; font-size: 3rem; text-align: center; margin-bottom: 20px;">
-                    🏆 Race Complete!
+                <h2 style="color: #667eea; font-size: 3rem; text-align: center; margin-bottom: 40px;">
+                    ✅ Final Results
                 </h2>
-                
-                <div style="text-align: center; margin-bottom: 30px;">
-                    <h1 id="winnerName" style="color: #fbbf24; font-size: 2.5rem; font-weight: 700;"></h1>
+
+                <div style="display: flex; justify-content: center; gap: 40px; flex-wrap: wrap; text-align: center;">
+
+                    <div style="background: rgba(255,255,255,0.9); border-radius: 25px; padding: 40px 60px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
+                        <h3 style="font-size: 2rem; color: #667eea; margin-bottom: 10px;">🐴 Horse A</h3>
+                        <div style="font-size: 4rem; color: #10b981;">✔️</div>
+                        <p style="font-size: 1.3rem; color: #10b981; font-weight: bold; margin-top: 10px;">SUCCESS</p>
+                    </div>
+
+                    <div style="background: rgba(255,255,255,0.9); border-radius: 25px; padding: 40px 60px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
+                        <h3 style="font-size: 2rem; color: #667eea; margin-bottom: 10px;">🐴 Horse B</h3>
+                        <div style="font-size: 4rem; color: #10b981;">✔️</div>
+                        <p style="font-size: 1.3rem; color: #10b981; font-weight: bold; margin-top: 10px;">SUCCESS</p>
+                    </div>
+
+                    <div style="background: rgba(255,255,255,0.9); border-radius: 25px; padding: 40px 60px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
+                        <h3 style="font-size: 2rem; color: #667eea; margin-bottom: 10px;">🐴 Horse C</h3>
+                        <div style="font-size: 4rem; color: #ef4444;">❌</div>
+                        <p style="font-size: 1.3rem; color: #ef4444; font-weight: bold; margin-top: 10px;">FAIL</p>
+                    </div>
+
                 </div>
-                
-                <div class="podium" id="podium"></div>
                 
                 <div style="text-align: center;">
                     <button class="reveal-btn" onclick="showReveal()">
@@ -637,29 +653,7 @@
                             </div>
                         </div>
                         
-                        <div style="margin-top: 50px; padding: 30px; background: rgba(255,255,255,0.2); border-radius: 15px;">
-                            <h3 style="font-size: 2rem; margin-bottom: 20px;">🎓 Key Insights</h3>
-                            
-                            <p style="font-size: 1.3rem; margin: 15px 0;">
-                                <strong>1. Priority Matters:</strong> Team A started first AND had the most players. Just like in our system, high-priority transactions get processed first AND get more resources.
-                            </p>
-                            
-                            <p style="font-size: 1.3rem; margin: 15px 0;">
-                                <strong>2. Real-Time Visibility:</strong> Every tap, every second, every status change was visible instantly. That's exactly what Tracer provides - complete transparency into every transaction.
-                            </p>
-                            
-                            <p style="font-size: 1.3rem; margin: 15px 0;">
-                                <strong>3. Immediate Problem Detection:</strong> Team C's disconnection at 250 taps and Team B's degradation at 450 taps were detected instantly. In production, this means we catch issues in milliseconds, not minutes.
-                            </p>
-                            
-                            <p style="font-size: 1.3rem; margin: 15px 0;">
-                                <strong>4. Accurate Time Tracking:</strong> We measured exactly how long each team took from their gate opening to reaching 1000 taps. In production, we track transaction latency to the millisecond.
-                            </p>
-                            
-                            <p style="font-size: 1.3rem; margin: 15px 0;">
-                                <strong>5. Nothing Gets Lost:</strong> Even when Team C was disconnected, we knew exactly where they were (250 taps). Every transaction is tracked from start to finish, no matter what happens.
-                            </p>
-                        </div>
+
                         
                         <p style="font-size: 1.8rem; margin-top: 50px; font-weight: 700;">
                             <strong>Synovus' Tracer System provides this level of visibility and control for millions of real financial transactions every day.</strong>
@@ -768,9 +762,9 @@
                 const tapsRemaining = Math.max(0, 1000 - team.totalTaps);
                 
                 // Accurate linear horse positioning:
-                // Track starts at 100px (after gate), ends at ~90% of container
-                // Horse moves linearly from 0% to 100% progress
-                const horseLeft = `calc(100px + ${progress * 0.80}%)`;
+                // Track starts at 100px (after gate), ends at finish line (right side)
+                // Horse moves linearly from 0% to 100% progress across entire track
+                const horseLeft = `calc(100px + ${progress * 0.87}%)`;
                 
                 // Demo disruption indicators
                 let disruptionBadge = '';
@@ -788,22 +782,17 @@
                         <div class="lane-info">
                             <div class="team-label" style="color: ${team.color}">
                                 ${team.name}
-                                ${team.finished ? '<span style="color: #10b981; font-size: 1.2rem; margin-left: 10px;">✅ SUCCESS!</span>' : ''}
+                                ${team.finished ? '<span style="color: #10b981; font-size: 1.2rem; margin-left: 10px;">✅ FINISHED!</span>' : ''}
                                 ${disruptionBadge}
                             </div>
                             <div style="font-size: 1rem; color: white; margin-top: 5px;">
                                 ${team.canRace && !team.finished ? `⏱️ ${team.currentTime}s | ${tapsRemaining} taps left` : ''}
-                                ${team.finished ? `⏱️ Finished in ${team.raceTime}s` : ''}
+                                ${team.finished ? `⏱️ Crossed finish line at ${team.raceTime}s` : ''}
                                 ${!team.canRace ? 'Waiting to start...' : ''}
                             </div>
                         </div>
-                        ${team.canRace && !team.finished ? `
-                        <div class="horse racing" style="left: ${horseLeft}; font-size: 4rem; ${team.disrupted && team.disruptionType === 'disconnected' ? 'opacity: 0.5; filter: grayscale(100%);' : ''}">
-                            ${team.emoji}
-                        </div>
-                        ` : ''}
-                        ${team.finished ? `
-                        <div class="horse" style="left: ${horseLeft}; font-size: 4rem;">
+                        ${team.canRace ? `
+                        <div class="horse ${!team.finished ? 'racing' : ''}" style="left: ${horseLeft}; font-size: 4rem; ${team.disrupted && team.disruptionType === 'disconnected' ? 'opacity: 0.5; filter: grayscale(100%);' : ''}; ${team.finished ? 'z-index: 20;' : ''}">
                             ${team.emoji}
                         </div>
                         ` : ''}
@@ -825,7 +814,7 @@
                 return `
                 <div class="stat-card" style="${cardStyle}">
                     <div class="stat-team" style="color: ${team.color}">${team.name}</div>
-                    <div class="stat-value">${team.totalTaps} / 1000</div>
+                    <div class="stat-value">${team.totalTaps} / 2000</div>
                     <div class="stat-label">
                         ${team.finished ? `✅ Done in ${team.raceTime}s` : team.canRace ? `⏱️ ${team.currentTime}s` : 'Not started'}
                         ${team.disrupted && team.disruptionType === 'disconnected' ? '<div style="color: #ef4444; margin-top: 5px;">⚠️ DISCONNECTED</div>' : ''}

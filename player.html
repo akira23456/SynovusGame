@@ -590,7 +590,7 @@
                         const progress = Math.min(100, Math.round(myTeam.position));
                         document.getElementById('progressFill').style.width = `${progress}%`;
                         
-                        const tapsRemaining = Math.max(0, 1000 - myTeam.totalTaps);
+                        const tapsRemaining = Math.max(0, 2000 - myTeam.totalTaps);
                         
                         // Control tapping based on team's status
                         if (myTeam.finished) {
@@ -678,7 +678,8 @@
                 const statusText = document.getElementById('statusText');
                 
                 if (data.type === 'disconnected') {
-                    // Team C scenario: Full disconnection, can't tap
+                    // Both Team B and Team C: Full disconnection, can't tap
+                    // But Team B will continue with momentum, Team C will stop
                     canTap = false;
                     tapButton.style.opacity = '0.3';
                     tapButton.style.cursor = 'not-allowed';
@@ -723,39 +724,6 @@
                         </div>
                     `;
                     document.body.appendChild(overlay);
-                    
-                } else if (data.type === 'disconnected-continue') {
-                    // Team B scenario: Warning but can still tap
-                    tapButton.style.border = '5px solid #f59e0b';
-                    tapButton.style.boxShadow = '0 0 20px rgba(245, 158, 11, 0.6)';
-                    
-                    statusText.textContent = '⚠️ SERVICE WAS DISCONNECTED - CONTINUING';
-                    statusText.style.color = '#f59e0b';
-                    statusText.style.fontSize = '1.4rem';
-                    statusText.style.fontWeight = '700';
-                    
-                    // Show warning banner
-                    const banner = document.createElement('div');
-                    banner.id = 'warningBanner';
-                    banner.style.cssText = `
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        right: 0;
-                        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-                        color: white;
-                        padding: 15px;
-                        text-align: center;
-                        font-size: 1.2rem;
-                        font-weight: 700;
-                        z-index: 9999;
-                        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-                        animation: pulse 2s infinite;
-                    `;
-                    banner.innerHTML = `
-                        ⚠️ SERVICE DISCONNECTED - OPERATING IN DEGRADED MODE
-                    `;
-                    document.body.appendChild(banner);
                 }
             }
         });
@@ -778,7 +746,7 @@
                 document.getElementById('pendingTime').textContent = `⏱️ Final Time: ${myTeam.currentTime}s (DNF)`;
             }
             
-            document.getElementById('pendingTaps').textContent = `Team Taps: ${myTeam.totalTaps} / 1000`;
+            document.getElementById('pendingTaps').textContent = `Team Taps: ${myTeam.totalTaps} / 2000`;
             
             showScreen('pendingScreen');
         }
@@ -809,7 +777,7 @@
             document.getElementById('resultStats').innerHTML = `
                 <div>${myTeam.name}</div>
                 <div style="margin-top: 10px;">${myTeam.finished ? `⏱️ Time: ${myTeam.raceTime}s` : 'Did not finish'}</div>
-                <div>Team taps: ${myTeam.totalTaps} / 1000</div>
+                <div>Team taps: ${myTeam.totalTaps} / 2000</div>
                 <div>You tapped: ${myTaps} times</div>
             `;
             
